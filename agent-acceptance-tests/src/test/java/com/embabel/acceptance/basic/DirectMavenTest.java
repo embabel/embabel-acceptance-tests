@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.embabel.acceptance.agent;
+package com.embabel.acceptance.basic;
 
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;

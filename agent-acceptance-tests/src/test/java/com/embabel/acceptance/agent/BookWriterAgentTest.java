@@ -32,16 +32,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
 
 @ExtendWith(EmbabelA2AServerExtension.class)
-@DisplayName("EmbabelA2AServer Agent Interaction Tests")
-class EmbabelA2AServerInteractionTest {
-    
+@DisplayName("Book Writer Agent Tests")
+class BookWriterAgentTest {
+
     @Test
-    @DisplayName("Should send horoscope message and receive AI-generated story")
-    void shouldSendHoroscopeMessageAndReceiveStory(ServerInfo server) throws IOException {
+    @DisplayName("Should publish book about Kotlin and Spring")
+    void shouldPublishBookAboutKotlinAndSpring(ServerInfo server) throws IOException {
         String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/agent-message-request.json");
+        String payload = loadJsonPayload("payloads/book-publish-request.json");
         
-        System.out.println("Sending horoscope message to server at: " + baseUrl);
+        System.out.println("Requesting book publication at: " + baseUrl);
         
         Response response = given()
             .log().all()
@@ -59,18 +59,18 @@ class EmbabelA2AServerInteractionTest {
         System.out.println("Response status: " + statusCode);
         
         assertThat(statusCode)
-            .as("Server should accept the message")
+            .as("Server should accept the book publication request")
             .isIn(200, 202);
         
         if (statusCode == 200) {
             response.then()
                 .body("jsonrpc", equalTo("2.0"))
-                .body("id", equalTo("req-001"))
+                .body("id", equalTo("book-001"))
                 .body("result", notNullValue());
             
-            System.out.println("✓ Horoscope message sent and response received");
+            System.out.println("✓ Book publication completed successfully");
         } else {
-            System.out.println("✓ Message accepted for async processing");
+            System.out.println("✓ Book publication request accepted for async processing");
         }
     }
     
@@ -78,7 +78,7 @@ class EmbabelA2AServerInteractionTest {
     @DisplayName("Should validate JSON-RPC protocol compliance")
     void shouldValidateJsonRpcProtocol(ServerInfo server) throws IOException {
         String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/agent-message-request.json");
+        String payload = loadJsonPayload("payloads/book-publish-request.json");
         
         Response response = given()
             .baseUri(baseUrl)
@@ -108,50 +108,74 @@ class EmbabelA2AServerInteractionTest {
     }
     
     @Test
-    @DisplayName("Should include session context in message request")
-    void shouldIncludeSessionContext(ServerInfo server) throws IOException {
+    @DisplayName("Should publish book about Domain Driven Design")
+    void shouldPublishBookAboutDDD(ServerInfo server) {
         String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/agent-message-request.json");
         
-        assertThat(payload)
-            .as("Payload should contain sessionId")
-            .contains("session-xyz-122");
-        
-        System.out.println("✓ Session ID 'session-xyz-122' present in payload");
+        String payload = """
+            {
+              "jsonrpc": "2.0",
+              "id": "book-ddd-001",
+              "method": "com.embabel.example.crew.bookwriter.BookWriter.publishBook",
+              "params": {
+                "topic": "Domain Driven Design patterns in modern software architecture"
+              }
+            }
+            """;
         
         Response response = given()
+            .log().all()
             .baseUri(baseUrl)
             .contentType(ContentType.JSON)
             .body(payload)
             .when()
-            .post("/a2a");
+            .post("/a2a")
+            .then()
+            .log().all()
+            .extract()
+            .response();
         
-        System.out.println("Response status: " + response.getStatusCode());
-        System.out.println("✓ Request with session context processed");
+        assertThat(response.getStatusCode()).isIn(200, 202);
+        
+        if (response.getStatusCode() == 200) {
+            String result = response.path("result").toString();
+            assertThat(result)
+                .as("Result should contain published book details")
+                .isNotEmpty();
+            
+            System.out.println("✓ Domain Driven Design book published");
+        }
     }
     
     @Test
-    @DisplayName("Should verify message structure with parts")
-    void shouldVerifyMessageStructure(ServerInfo server) throws IOException {
+    @DisplayName("Should publish book about microservices")
+    void shouldPublishBookAboutMicroservices(ServerInfo server) {
         String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/agent-message-request.json");
         
-        assertThat(payload)
-            .as("Payload should contain message parts")
-            .contains("\"kind\": \"text\"")
-            .contains("Alex is Scorpio");
-        
-        System.out.println("✓ Message structure validated");
+        String payload = """
+            {
+              "jsonrpc": "2.0",
+              "id": "book-microservices-001",
+              "method": "com.embabel.example.crew.bookwriter.BookWriter.publishBook",
+              "params": {
+                "topic": "Building microservices with Spring Boot and Kubernetes"
+              }
+            }
+            """;
         
         Response response = given()
             .baseUri(baseUrl)
             .contentType(ContentType.JSON)
             .body(payload)
             .when()
-            .post("/a2a");
+            .post("/a2a")
+            .then()
+            .extract()
+            .response();
         
-        System.out.println("Response status: " + response.getStatusCode());
-        System.out.println("✓ Structured message processed");
+        assertThat(response.getStatusCode()).isIn(200, 202);
+        
+        System.out.println("✓ Microservices book publication processed");
     }
     
     private String loadJsonPayload(String resourcePath) throws IOException {

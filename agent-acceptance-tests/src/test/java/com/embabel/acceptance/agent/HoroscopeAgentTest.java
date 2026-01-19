@@ -33,13 +33,13 @@ import static org.hamcrest.Matchers.*;
 
 @ExtendWith(EmbabelA2AServerExtension.class)
 @DisplayName("EmbabelA2AServer Agent Interaction Tests")
-class EmbabelA2AServerInteractionTest {
-    
+class HoroscopeAgentTest {
+
     @Test
     @DisplayName("Should send horoscope message and receive AI-generated story")
     void shouldSendHoroscopeMessageAndReceiveStory(ServerInfo server) throws IOException {
         String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/agent-message-request.json");
+        String payload = loadJsonPayload("payloads/horoscope-agent-request.json");
         
         System.out.println("Sending horoscope message to server at: " + baseUrl);
         
@@ -78,7 +78,7 @@ class EmbabelA2AServerInteractionTest {
     @DisplayName("Should validate JSON-RPC protocol compliance")
     void shouldValidateJsonRpcProtocol(ServerInfo server) throws IOException {
         String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/agent-message-request.json");
+        String payload = loadJsonPayload("payloads/horoscope-agent-request.json");
         
         Response response = given()
             .baseUri(baseUrl)

@@ -15,48 +15,25 @@
  */
 package com.embabel.acceptance.agent;
 
-import com.embabel.acceptance.infrastructure.EmbabelA2AServerExtension;
+import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension;
+import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension.ServerInfo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
-
-import java.time.Duration;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
-/**
- * Acceptance tests for Agent-to-Agent communication scenarios.
- * 
- * Domain: Multi-Agent Communication Patterns
- * 
- * These tests verify that agents can successfully communicate with each other
- * through the EmbabelA2AServer, including message sending, receiving, and
- * handling different communication patterns.
- */
+@ExtendWith(EmbabelA2AServerExtension.class)
 @DisplayName("Agent-to-Agent Communication Acceptance Tests")
 class AgentCommunicationTest {
     
-    @RegisterExtension
-    static EmbabelA2AServerExtension server = 
-        new EmbabelA2AServerExtension.Builder()
-            .version("0.3.3-SNAPSHOT")
-            .serverPort(8080)
-            .jvmArg("-Xmx512m")
-            .jvmArg("-Dspring.profiles.active=test")
-            .env("EMBABEL_LOG_LEVEL", "DEBUG")
-            .startupTimeout(Duration.ofMinutes(2))
-            .build();
-    
     @Test
     @DisplayName("Agent should be able to register with server")
-    void agentShouldRegister() {
-        // Given: A new agent wants to register
+    void agentShouldRegister(ServerInfo server) {
         String agentId = "test-agent-1";
         String agentName = "Test Agent";
         
-        // When: Agent sends registration request
-        // Note: Adjust the endpoint and payload based on your actual API
         String response = given()
             .baseUri(server.getBaseUrl())
             .contentType("application/json")
@@ -79,14 +56,11 @@ class AgentCommunicationTest {
     
     @Test
     @DisplayName("Agent should be able to send message to another agent")
-    void agentShouldSendMessage() {
-        // Given: Two agents are registered
+    void agentShouldSendMessage(ServerInfo server) {
         String senderAgentId = "sender-agent";
         String receiverAgentId = "receiver-agent";
         String message = "Hello from sender!";
         
-        // When: Sender agent sends message to receiver
-        // Note: Adjust based on your actual message sending API
         given()
             .baseUri(server.getBaseUrl())
             .contentType("application/json")
@@ -109,12 +83,9 @@ class AgentCommunicationTest {
     
     @Test
     @DisplayName("Agent should be able to retrieve messages")
-    void agentShouldRetrieveMessages() {
-        // Given: An agent has messages waiting
+    void agentShouldRetrieveMessages(ServerInfo server) {
         String agentId = "receiver-agent";
         
-        // When: Agent polls for messages
-        // Note: Adjust endpoint based on your actual API
         given()
             .baseUri(server.getBaseUrl())
             .queryParam("agentId", agentId)
@@ -129,12 +100,9 @@ class AgentCommunicationTest {
     
     @Test
     @DisplayName("Server should handle multiple concurrent agents")
-    void serverShouldHandleConcurrentAgents() {
-        // Given: Multiple agents connect simultaneously
+    void serverShouldHandleConcurrentAgents(ServerInfo server) {
         String baseUrl = server.getBaseUrl();
         
-        // When: Multiple agents register concurrently
-        // This simulates a real-world scenario with multiple agents
         for (int i = 0; i < 5; i++) {
             final String agentId = "concurrent-agent-" + i;
             
@@ -158,10 +126,7 @@ class AgentCommunicationTest {
     
     @Test
     @DisplayName("Server should list all registered agents")
-    void serverShouldListAgents() {
-        // Given: Several agents are registered
-        
-        // When: We request the list of agents
+    void serverShouldListAgents(ServerInfo server) {
         given()
             .baseUri(server.getBaseUrl())
             .when()

@@ -15,32 +15,19 @@
  */
 package com.embabel.acceptance.agent;
 
-import com.embabel.acceptance.infrastructure.EmbabelA2AServerExtension;
+import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension;
+import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension.ServerInfo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.time.Duration;
-
-/**
- * Debug test to see the actual Maven error output
- */
+@ExtendWith(EmbabelA2AServerExtension.class)
 @DisplayName("Debug Maven Download")
 class DebugMavenDownloadTest {
     
-    @RegisterExtension
-    static EmbabelA2AServerExtension server = 
-        new EmbabelA2AServerExtension.Builder()
-            .version("0.3.3-SNAPSHOT")
-            .serverPort(8080)
-            .enableLogging(true)  // Enable full logging
-            .startupTimeout(Duration.ofMinutes(5))  // More time to see logs
-            .build();
-    
     @Test
     @DisplayName("Try to start server - watch the Maven output")
-    void debugTest() {
-        // This test will show us the Maven error in detail
+    void debugTest(ServerInfo server) {
         System.out.println("Server started at: " + server.getBaseUrl());
     }
 }
