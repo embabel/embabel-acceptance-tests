@@ -207,7 +207,7 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         
         // Detect OS and use appropriate Maven executable
         boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
-        String mavenCommand = isWindows ? "mvn.cmd" : "mvn";
+        String mavenCommand = isWindows ? "c:\\tools\\apache\\maven\\apache-maven-3.9.6\\bin\\mvn.cmd" : "mvn";
         
         // Build Maven command
         List<String> command = new ArrayList<>();
@@ -248,6 +248,8 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         } else {
             env.put("PATH", mavenBinPath);
         }
+
+        env.put("JAVA_HOME", System.getProperty("java.home"));
         
         log("Added Maven to PATH: " + mavenBinPath);
         

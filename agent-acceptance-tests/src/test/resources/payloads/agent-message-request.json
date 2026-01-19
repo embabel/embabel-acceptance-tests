@@ -1,0 +1,20 @@
+{
+  "jsonrpc": "2.0",
+  "id": "req-001",
+  "method": "message/send",
+  "params": {
+    "sessionId": "session-xyz-122",
+    "message": {
+      "kind": "message",
+      "messageId": "msg-1768680930910-tq8j1m12i",
+      "role": "user",
+      "parts": [
+        {
+          "kind": "text",
+          "text": "Alex is Scorpio. Write story based on Alex's horoscope."
+        }
+      ],
+      "metadata": {}
+    }
+  }
+}
