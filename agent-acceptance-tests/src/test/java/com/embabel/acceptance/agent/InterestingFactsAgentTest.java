@@ -32,16 +32,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
 
 @ExtendWith(EmbabelA2AServerExtension.class)
-@DisplayName("Book Writer Agent Tests")
-class BookWriterAgentTest {
+@DisplayName("Interesting Facts Agent Tests - Find Facts About Person")
+class InterestingFactsAgentTest {
 
     @Test
-    @DisplayName("Should publish book about Kotlin and Spring")
-    void shouldPublishBookAboutKotlinAndSpring(ServerInfo server) throws IOException {
+    @DisplayName("Should find interesting facts about a person")
+    void shouldFindInterestingFacts(ServerInfo server) throws IOException {
         String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/book-writer-request.json");
+        String payload = loadJsonPayload("payloads/interesting-facts-request.json");
         
-        System.out.println("Requesting book publication at: " + baseUrl);
+        System.out.println("Requesting interesting facts at: " + baseUrl);
         
         Response response = given()
             .log().all()
@@ -59,18 +59,18 @@ class BookWriterAgentTest {
         System.out.println("Response status: " + statusCode);
         
         assertThat(statusCode)
-            .as("Server should accept the book publication request")
+            .as("Server should accept the request to find interesting facts")
             .isIn(200, 202);
         
         if (statusCode == 200) {
             response.then()
                 .body("jsonrpc", equalTo("2.0"))
-                .body("id", equalTo("req-002"))
+                .body("id", equalTo("req-006"))
                 .body("result", notNullValue());
             
-            System.out.println("✓ Book publication completed successfully");
+            System.out.println("✓ Interesting facts found successfully");
         } else {
-            System.out.println("✓ Book publication request accepted for async processing");
+            System.out.println("✓ Interesting facts request accepted for async processing");
         }
     }
     
@@ -78,7 +78,7 @@ class BookWriterAgentTest {
     @DisplayName("Should validate JSON-RPC protocol compliance")
     void shouldValidateJsonRpcProtocol(ServerInfo server) throws IOException {
         String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/book-writer-request.json");
+        String payload = loadJsonPayload("payloads/interesting-facts-request.json");
         
         Response response = given()
             .baseUri(baseUrl)
@@ -108,15 +108,15 @@ class BookWriterAgentTest {
     }
     
     @Test
-    @DisplayName("Should verify message structure with session context")
+    @DisplayName("Should verify message structure with person details")
     void shouldVerifyMessageStructure(ServerInfo server) throws IOException {
         String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/book-writer-request.json");
+        String payload = loadJsonPayload("payloads/interesting-facts-request.json");
         
         assertThat(payload)
-            .as("Payload should contain message structure")
-            .contains("\"kind\": \"message\"")
-            .contains("Kotlin and Spring Framework");
+            .as("Payload should contain person details")
+            .contains("\"kind\": \"text\"")
+            .contains("interesting facts");
         
         System.out.println("✓ Message structure validated");
         

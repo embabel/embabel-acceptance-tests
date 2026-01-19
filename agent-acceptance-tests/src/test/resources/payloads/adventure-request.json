@@ -1,0 +1,20 @@
+{
+  "jsonrpc": "2.0",
+  "id": "req-004",
+  "method": "message/send",
+  "params": {
+    "sessionId": "session-xyz-125",
+    "message": {
+      "kind": "message",
+      "messageId": "msg-1768680930913-ad5k6m78n",
+      "role": "user",
+      "parts": [
+        {
+          "kind": "text",
+          "text": "Let's go on an adventure! I'm a Kotlin developer learning about microservices architecture. Create a choose-your-own-adventure story where I explore different design patterns."
+        }
+      ],
+      "metadata": {}
+    }
+  }
+}

@@ -50,25 +50,13 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
     private static final String ARTIFACT_ID = "example-agent-java";
     private static final String EMBABEL_RELEASES_REPO = "https://repo.embabel.com/artifactory/libs-release";
     private static final String EMBABEL_SNAPSHOTS_REPO = "https://repo.embabel.com/artifactory/libs-snapshot";
-    private static final String MCP_PLUGIN_VERSION = "v0.1.0";
-    private static final String MCP_PLUGIN_BASE_URL = "https://github.com/modelcontextprotocol/mcp-docker-plugin/releases/download";
-    
+
     // Default configuration - modify here for all tests
     private static final String DEFAULT_VERSION = "0.3.3-SNAPSHOT";
     private static final int DEFAULT_SERVER_PORT = 8080;
     private static final String DEFAULT_JVM_ARGS = "-Xmx512m";
     private static final Duration DEFAULT_STARTUP_TIMEOUT = Duration.ofMinutes(2);
-    
-    // API Keys - read from environment or use defaults
-    private static final String OPENAI_API_KEY = System.getenv().getOrDefault(
-        "OPENAI_API_KEY", 
-        "sk-tNr0jDSXiHMAmNgQicqBaUxLsc4OYxf5bQv4rLdsHmT3BlbkFJPNeLm3GFrKrwOWzF6ap6BWw7G91Qw2y9q9cPJDxUsA"
-    );
-    private static final String ANTHROPIC_API_KEY = System.getenv().getOrDefault(
-        "ANTHROPIC_API_KEY",
-        "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"
-    );
-    
+
     // Singleton container - shared across ALL test classes
     private static volatile GenericContainer<?> container;
     private static volatile Path downloadedJarPath;
@@ -105,18 +93,14 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
                     ImageFromDockerfile image = new ImageFromDockerfile()
                         .withFileFromPath("app.jar", downloadedJarPath)
                         .withDockerfileFromBuilder(dockerfileBuilder);
-                    
-                    String dockerSocketPath = getDockerSocketPath();
-                    
+
                     Map<String, String> envVars = new HashMap<>();
-                    envVars.put("OPENAI_API_KEY", OPENAI_API_KEY);
-                    envVars.put("ANTHROPIC_API_KEY", ANTHROPIC_API_KEY);
+                    envVars.put("OPENAI_API_KEY", System.getenv().get("OPENAI_API_KEY"));
+                    envVars.put("ANTHROPIC_API_KEY", System.getenv().get("ANTHROPIC_API_KEY"));
                     
                     container = new GenericContainer<>(image)
                         .withExposedPorts(DEFAULT_SERVER_PORT)
                         .withEnv(envVars)
-                        .withFileSystemBind(dockerSocketPath, "/var/run/docker.sock")
-                        .withPrivilegedMode(true)
                         .waitingFor(Wait.forListeningPort().withStartupTimeout(DEFAULT_STARTUP_TIMEOUT));
                     
                     container.withLogConsumer(frame -> System.out.print("[EmbabelA2A] " + frame.getUtf8String()));
@@ -133,7 +117,7 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
                                 try {
                                     Files.deleteIfExists(downloadedJarPath);
                                     Files.deleteIfExists(downloadedJarPath.getParent());
-                                } catch (IOException e) { }
+                                } catch (IOException e) { e.printStackTrace(); }
                             }
                         }
                     }));
@@ -178,12 +162,6 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         return String.format("http://%s:%d", getHost(), getMappedPort());
     }
     
-    private String getDockerSocketPath() {
-        return System.getProperty("os.name").toLowerCase().contains("win") 
-            ? "//./pipe/docker_engine" 
-            : "/var/run/docker.sock";
-    }
-    
     private Path downloadJarLocally() throws Exception {
         Path tempDir = Files.createTempDirectory("embabel-test-");
         Path jarPath = tempDir.resolve(ARTIFACT_ID + ".jar");
@@ -214,11 +192,7 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         pb.redirectErrorStream(true);
         
         Map<String, String> env = pb.environment();
-        String mavenBinPath = "c:\\tools\\apache\\maven\\apache-maven-3.9.6\\bin";
-        String currentPath = env.get("PATH");
-        env.put("PATH", currentPath != null ? mavenBinPath + File.pathSeparator + currentPath : mavenBinPath);
-        env.put("JAVA_HOME", System.getProperty("java.home"));
-        
+
         Process process = pb.start();
         StringBuilder output = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
@@ -242,19 +216,6 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
     
     private void buildDockerfile(DockerfileBuilder builder) {
         builder.from("eclipse-temurin:21-jre-alpine");
-        builder.run("apk add --no-cache docker-cli curl");
-        builder.run("mkdir -p /usr/local/lib/docker/cli-plugins");
-        
-        String mcpDownloadCmd = String.format(
-            "curl -fsSL %s/%s/docker-mcp-linux-amd64 -o /usr/local/lib/docker/cli-plugins/docker-mcp || " +
-            "curl -fsSL https://github.com/modelcontextprotocol/servers/releases/download/%s/docker-mcp-linux-amd64 -o /usr/local/lib/docker/cli-plugins/docker-mcp || " +
-            "curl -fsSL https://github.com/anthropics/mcp-docker/releases/download/%s/docker-mcp-linux-amd64 -o /usr/local/lib/docker/cli-plugins/docker-mcp || " +
-            "echo 'WARNING: Could not download MCP plugin'",
-            MCP_PLUGIN_BASE_URL, MCP_PLUGIN_VERSION, MCP_PLUGIN_VERSION, MCP_PLUGIN_VERSION
-        );
-        
-        builder.run(mcpDownloadCmd);
-        builder.run("chmod +x /usr/local/lib/docker/cli-plugins/docker-mcp 2>/dev/null || true");
         builder.workDir("/app");
         builder.copy("app.jar", "/app/app.jar");
         builder.expose(DEFAULT_SERVER_PORT);

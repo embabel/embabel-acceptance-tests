@@ -1,0 +1,8 @@
+{
+  "jsonrpc": "2.0",
+  "id": "book-001",
+  "method": "com.embabel.example.crew.bookwriter.BookWriter.publishBook",
+  "params": {
+    "topic": "Building modern applications with Kotlin and Spring Framework"
+  }
+}

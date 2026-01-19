@@ -1,0 +1,20 @@
+{
+  "jsonrpc": "2.0",
+  "id": "req-003",
+  "method": "message/send",
+  "params": {
+    "sessionId": "session-xyz-124",
+    "message": {
+      "kind": "message",
+      "messageId": "msg-1768680930912-fc3k4m56l",
+      "role": "user",
+      "parts": [
+        {
+          "kind": "text",
+          "text": "Please fact-check this content: Kotlin was developed by JetBrains and officially released in 2016. It is now an officially supported language for Android development by Google. Spring Framework is the most popular Java framework for enterprise applications."
+        }
+      ],
+      "metadata": {}
+    }
+  }
+}

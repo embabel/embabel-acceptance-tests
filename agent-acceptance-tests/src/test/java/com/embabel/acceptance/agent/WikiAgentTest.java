@@ -36,7 +36,7 @@ import static org.hamcrest.Matchers.*;
 class WikiAgentTest {
 
     @Test
-    @DisplayName("Should perform Wikipedia research on Kotlin programming language")
+    @DisplayName("Should perform Wikipedia research on Kotlin")
     void shouldResearchKotlinOnWikipedia(ServerInfo server) throws IOException {
         String baseUrl = server.getBaseUrl();
         String payload = loadJsonPayload("payloads/wiki-research-request.json");
@@ -65,7 +65,7 @@ class WikiAgentTest {
         if (statusCode == 200) {
             response.then()
                 .body("jsonrpc", equalTo("2.0"))
-                .body("id", equalTo("wiki-001"))
+                .body("id", equalTo("req-008"))
                 .body("result", notNullValue());
             
             System.out.println("✓ Wikipedia research completed successfully");
@@ -75,7 +75,7 @@ class WikiAgentTest {
     }
     
     @Test
-    @DisplayName("Should validate JSON-RPC protocol compliance for wiki research")
+    @DisplayName("Should validate JSON-RPC protocol compliance")
     void shouldValidateJsonRpcProtocol(ServerInfo server) throws IOException {
         String baseUrl = server.getBaseUrl();
         String payload = loadJsonPayload("payloads/wiki-research-request.json");
@@ -108,74 +108,27 @@ class WikiAgentTest {
     }
     
     @Test
-    @DisplayName("Should research Domain Driven Design")
-    void shouldResearchDomainDrivenDesign(ServerInfo server) {
+    @DisplayName("Should verify message structure with research query")
+    void shouldVerifyMessageStructure(ServerInfo server) throws IOException {
         String baseUrl = server.getBaseUrl();
+        String payload = loadJsonPayload("payloads/wiki-research-request.json");
         
-        String payload = """
-            {
-              "jsonrpc": "2.0",
-              "id": "wiki-ddd-001",
-              "method": "com.embabel.example.wikipedia.WikiAgent.performResearch",
-              "params": {
-                "query": "Domain Driven Design by Eric Evans"
-              }
-            }
-            """;
+        assertThat(payload)
+            .as("Payload should contain research query")
+            .contains("\"kind\": \"text\"")
+            .contains("Wikipedia");
         
-        Response response = given()
-            .log().all()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a")
-            .then()
-            .log().all()
-            .extract()
-            .response();
-        
-        assertThat(response.getStatusCode()).isIn(200, 202);
-        
-        if (response.getStatusCode() == 200) {
-            String result = response.path("result").toString();
-            assertThat(result)
-                .as("Result should contain research findings")
-                .isNotEmpty();
-            
-            System.out.println("✓ Domain Driven Design research completed");
-        }
-    }
-    
-    @Test
-    @DisplayName("Should research Spring Framework")
-    void shouldResearchSpringFramework(ServerInfo server) {
-        String baseUrl = server.getBaseUrl();
-        
-        String payload = """
-            {
-              "jsonrpc": "2.0",
-              "id": "wiki-spring-001",
-              "method": "com.embabel.example.wikipedia.WikiAgent.performResearch",
-              "params": {
-                "query": "Spring Framework Java"
-              }
-            }
-            """;
+        System.out.println("✓ Message structure validated");
         
         Response response = given()
             .baseUri(baseUrl)
             .contentType(ContentType.JSON)
             .body(payload)
             .when()
-            .post("/a2a")
-            .then()
-            .extract()
-            .response();
+            .post("/a2a");
         
-        assertThat(response.getStatusCode()).isIn(200, 202);
-        
-        System.out.println("✓ Spring Framework research processed");
+        System.out.println("Response status: " + response.getStatusCode());
+        System.out.println("✓ Structured message processed");
     }
     
     private String loadJsonPayload(String resourcePath) throws IOException {

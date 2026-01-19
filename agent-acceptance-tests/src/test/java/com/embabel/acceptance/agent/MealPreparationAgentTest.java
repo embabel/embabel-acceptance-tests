@@ -32,16 +32,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
 
 @ExtendWith(EmbabelA2AServerExtension.class)
-@DisplayName("EmbabelA2AServer Agent Interaction Tests")
-class EmbabelA2AServerInteractionTest {
-    
+@DisplayName("Meal Preparation Agent Tests - Cook Meal")
+class MealPreparationAgentTest {
+
     @Test
-    @DisplayName("Should send horoscope message and receive AI-generated story")
-    void shouldSendHoroscopeMessageAndReceiveStory(ServerInfo server) throws IOException {
+    @DisplayName("Should prepare meal according to order")
+    void shouldPrepareMeal(ServerInfo server) throws IOException {
         String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/agent-message-request.json");
+        String payload = loadJsonPayload("payloads/meal-preparation-request.json");
         
-        System.out.println("Sending horoscope message to server at: " + baseUrl);
+        System.out.println("Requesting meal preparation at: " + baseUrl);
         
         Response response = given()
             .log().all()
@@ -59,18 +59,18 @@ class EmbabelA2AServerInteractionTest {
         System.out.println("Response status: " + statusCode);
         
         assertThat(statusCode)
-            .as("Server should accept the message")
+            .as("Server should accept the meal preparation request")
             .isIn(200, 202);
         
         if (statusCode == 200) {
             response.then()
                 .body("jsonrpc", equalTo("2.0"))
-                .body("id", equalTo("req-001"))
+                .body("id", equalTo("req-009"))
                 .body("result", notNullValue());
             
-            System.out.println("✓ Horoscope message sent and response received");
+            System.out.println("✓ Meal prepared successfully");
         } else {
-            System.out.println("✓ Message accepted for async processing");
+            System.out.println("✓ Meal preparation request accepted for async processing");
         }
     }
     
@@ -78,7 +78,7 @@ class EmbabelA2AServerInteractionTest {
     @DisplayName("Should validate JSON-RPC protocol compliance")
     void shouldValidateJsonRpcProtocol(ServerInfo server) throws IOException {
         String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/agent-message-request.json");
+        String payload = loadJsonPayload("payloads/meal-preparation-request.json");
         
         Response response = given()
             .baseUri(baseUrl)
@@ -108,38 +108,15 @@ class EmbabelA2AServerInteractionTest {
     }
     
     @Test
-    @DisplayName("Should include session context in message request")
-    void shouldIncludeSessionContext(ServerInfo server) throws IOException {
-        String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/agent-message-request.json");
-        
-        assertThat(payload)
-            .as("Payload should contain sessionId")
-            .contains("session-xyz-122");
-        
-        System.out.println("✓ Session ID 'session-xyz-122' present in payload");
-        
-        Response response = given()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a");
-        
-        System.out.println("Response status: " + response.getStatusCode());
-        System.out.println("✓ Request with session context processed");
-    }
-    
-    @Test
-    @DisplayName("Should verify message structure with parts")
+    @DisplayName("Should verify message structure with meal order")
     void shouldVerifyMessageStructure(ServerInfo server) throws IOException {
         String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/agent-message-request.json");
+        String payload = loadJsonPayload("payloads/meal-preparation-request.json");
         
         assertThat(payload)
-            .as("Payload should contain message parts")
+            .as("Payload should contain meal order")
             .contains("\"kind\": \"text\"")
-            .contains("Alex is Scorpio");
+            .contains("pasta");
         
         System.out.println("✓ Message structure validated");
         
