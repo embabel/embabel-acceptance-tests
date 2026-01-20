@@ -24,7 +24,7 @@
 
 &nbsp;&nbsp;&nbsp;&nbsp;
 
-Acceptance tests for **EmbabelA2AServer** using **Testcontainers** and **JUnit 5**.
+Acceptance tests for **Embabel Agent Framework** using **Latest Snapshot Build**, **A2A JSON-RPC Endpoint**, **Testcontainers** and **JUnit 5**.
 
 ## Overview
 
