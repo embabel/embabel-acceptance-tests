@@ -29,7 +29,7 @@ Acceptance tests for **EmbabelA2AServer** using **Testcontainers** and **JUnit 5
 ## Overview
 
 This test suite automatically:
-1. Downloads `example-agent-java` from **Embabel Artifactory** using Maven wrapper
+1. Downloads `example-agent-java` from **Embabel Artifactory** using Apache Maven
 2. Builds and launches it as a Docker container
 3. Runs focused acceptance tests to verify A2A agent functionality
 
@@ -125,8 +125,6 @@ class HoroscopeAgentTest extends AbstractA2ATest {
     }
 }
 ```
-
-**That's it! ~50 lines vs ~180 lines in traditional approach.**
 
 ### Available Assertion Methods (from AbstractA2ATest)
 
@@ -409,33 +407,6 @@ acceptance-tests:
   script:
     - ./mvnw clean test
 ```
-
-## Benefits of Refactored Approach
-
-### Before (Traditional)
-- ~180 lines per test class
-- Duplicated infrastructure code
-- Mixed domain and technical concerns
-- Hard to maintain
-
-### After (Refactored)
-- ~50 lines per test class
-- Shared infrastructure in base class
-- Pure domain focus
-- Easy to maintain and extend
-
-**Code reduction: ~72%**
-
-## Analogy
-
-Think of the refactored tests like a **professional workshop**:
-- **Base class** = Shared tool station with common tools
-- **Agent tests** = Craftsmen focusing only on their specialty
-- **No duplication** = Everyone uses the same high-quality tools
-
-vs. Traditional approach where each craftsman carries their own complete toolkit.
-
----
 
 **Ready to test?**
 
