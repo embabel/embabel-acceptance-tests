@@ -163,8 +163,8 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
                 "OPENAI_API_KEY", getEnvironmentVariable("EMBABEL_OI_API_KEY"),
                 "ANTHROPIC_API_KEY", getEnvironmentVariable("EMBABEL_AC_API_KEY"),
                 "AWS_REGION", getEnvironmentVariable("us-east-2"),
-                "AWS_ACCESS_KEY_ID", getEnvironmentVariable("EMBABEL_AWS_AS_KEY_ID"),
-                "AWS_SECRET_ACCESS_KEY", getEnvironmentVariable("EMBABEL_AWS_ST_AS_KEY")
+                "AWS_ACCESS_KEY_ID", getEnvironmentVariable("EMBABEL_AS_KEY_ID"),
+                "AWS_SECRET_ACCESS_KEY", getEnvironmentVariable("EMBABEL_ST_AS_KEY")
                 );
     }
 
