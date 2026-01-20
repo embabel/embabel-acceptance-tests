@@ -25,12 +25,13 @@ import java.io.*;
 import java.nio.file.*;
 import java.time.Duration;
 import java.util.*;
-import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * JUnit5 Extension for managing EmbabelA2AServer container lifecycle.
  * SINGLETON pattern - container initialized ONCE and shared across all test classes.
- * 
+ *
  * Usage in test classes:
  * <pre>
  * {@code
@@ -45,23 +46,34 @@ import java.util.function.Consumer;
  * </pre>
  */
 public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCallback, ParameterResolver {
-    
+
+    // Maven artifact coordinates
     private static final String GROUP_ID = "com.embabel.example.java";
     private static final String ARTIFACT_ID = "example-agent-java";
-    private static final String EMBABEL_RELEASES_REPO = "https://repo.embabel.com/artifactory/libs-release";
-    private static final String EMBABEL_SNAPSHOTS_REPO = "https://repo.embabel.com/artifactory/libs-snapshot";
-
-    // Default configuration - modify here for all tests
     private static final String DEFAULT_VERSION = "0.3.3-SNAPSHOT";
+
+    // Repository URLs
+    private static final List<String> MAVEN_REPOSITORIES = List.of(
+            "https://repo.embabel.com/artifactory/libs-release",
+            "https://repo.embabel.com/artifactory/libs-snapshot"
+    );
+
+    // Container configuration
     private static final int DEFAULT_SERVER_PORT = 8080;
-    private static final String DEFAULT_JVM_ARGS = "-Xmx512m";
+    private static final String DEFAULT_JVM_ARGS = "-Xmx1024m";
     private static final Duration DEFAULT_STARTUP_TIMEOUT = Duration.ofMinutes(2);
+    private static final String DOCKER_BASE_IMAGE = "eclipse-temurin:21-jre-alpine";
+
+    // Extension context keys
+    private static final String STORE_KEY_CONTAINER = "embabelContainer";
+    private static final String STORE_KEY_PORT = "embabelPort";
+    private static final String STORE_KEY_BASE_URL = "embabelBaseUrl";
 
     // Singleton container - shared across ALL test classes
     private static volatile GenericContainer<?> container;
     private static volatile Path downloadedJarPath;
     private static final Object LOCK = new Object();
-    
+
     /**
      * Server information holder for parameter injection.
      */
@@ -69,58 +81,24 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         private final String baseUrl;
         private final int port;
         private final GenericContainer<?> container;
-        
+
         public ServerInfo(String baseUrl, int port, GenericContainer<?> container) {
-            this.baseUrl = baseUrl;
+            this.baseUrl = Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
             this.port = port;
-            this.container = container;
+            this.container = Objects.requireNonNull(container, "container cannot be null");
         }
-        
+
         public String getBaseUrl() { return baseUrl; }
         public int getPort() { return port; }
         public GenericContainer<?> getContainer() { return container; }
     }
-    
+
     @Override
     public void beforeAll(ExtensionContext context) throws Exception {
-        if (container == null || !container.isRunning()) {
+        if (!isContainerRunning()) {
             synchronized (LOCK) {
-                if (container == null || !container.isRunning()) {
-                    log("Initializing container (singleton - shared across all tests)");
-                    downloadedJarPath = downloadJarLocally();
-                    
-                    Consumer<DockerfileBuilder> dockerfileBuilder = this::buildDockerfile;
-                    ImageFromDockerfile image = new ImageFromDockerfile()
-                        .withFileFromPath("app.jar", downloadedJarPath)
-                        .withDockerfileFromBuilder(dockerfileBuilder);
-
-                    Map<String, String> envVars = new HashMap<>();
-                    envVars.put("OPENAI_API_KEY", System.getenv().get("OPENAI_API_KEY"));
-                    envVars.put("ANTHROPIC_API_KEY", System.getenv().get("ANTHROPIC_API_KEY"));
-                    
-                    container = new GenericContainer<>(image)
-                        .withExposedPorts(DEFAULT_SERVER_PORT)
-                        .withEnv(envVars)
-                        .waitingFor(Wait.forListeningPort().withStartupTimeout(DEFAULT_STARTUP_TIMEOUT));
-                    
-                    container.withLogConsumer(frame -> System.out.print("[EmbabelA2A] " + frame.getUtf8String()));
-                    
-                    log("Starting container...");
-                    container.start();
-                    log("Container started on port " + getMappedPort());
-                    
-                    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                        if (container != null && container.isRunning()) {
-                            log("Stopping container on JVM shutdown");
-                            container.stop();
-                            if (downloadedJarPath != null) {
-                                try {
-                                    Files.deleteIfExists(downloadedJarPath);
-                                    Files.deleteIfExists(downloadedJarPath.getParent());
-                                } catch (IOException e) { e.printStackTrace(); }
-                            }
-                        }
-                    }));
+                if (!isContainerRunning()) {
+                    initializeContainer();
                 } else {
                     log("Reusing existing container (singleton)");
                 }
@@ -128,114 +106,198 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         } else {
             log("Reusing existing container (singleton)");
         }
-        
+
         storeInContext(context);
     }
-    
+
     @Override
     public void afterAll(ExtensionContext context) {
         log("Test class completed - container remains running for other tests");
     }
-    
+
     @Override
     public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
         return parameterContext.getParameter().getType() == ServerInfo.class;
     }
-    
+
     @Override
     public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
-        ExtensionContext.Store store = extensionContext.getStore(ExtensionContext.Namespace.GLOBAL);
-        String baseUrl = store.get("embabelBaseUrl", String.class);
-        Integer port = store.get("embabelPort", Integer.class);
+        var store = extensionContext.getStore(ExtensionContext.Namespace.GLOBAL);
+        String baseUrl = store.get(STORE_KEY_BASE_URL, String.class);
+        Integer port = store.get(STORE_KEY_PORT, Integer.class);
         return new ServerInfo(baseUrl, port, container);
     }
-    
+
+    private boolean isContainerRunning() {
+        return container != null && container.isRunning();
+    }
+
+    private void initializeContainer() throws Exception {
+        log("Initializing container (singleton - shared across all tests)");
+
+        downloadedJarPath = downloadJarLocally();
+        var image = buildDockerImage(downloadedJarPath);
+        var envVars = buildEnvironmentVariables();
+
+        container = new GenericContainer<>(image)
+                .withExposedPorts(DEFAULT_SERVER_PORT)
+                .withEnv(envVars)
+                .withLogConsumer(frame -> System.out.print("[EmbabelA2A] " + frame.getUtf8String()))
+                .waitingFor(Wait.forListeningPort().withStartupTimeout(DEFAULT_STARTUP_TIMEOUT));
+
+        log("Starting container...");
+        container.start();
+        log("Container started on port " + getMappedPort());
+
+        registerShutdownHook();
+    }
+
+    private ImageFromDockerfile buildDockerImage(Path jarPath) {
+        return new ImageFromDockerfile()
+                .withFileFromPath("app.jar", jarPath)
+                .withDockerfileFromBuilder(this::buildDockerfile);
+    }
+
+    private Map<String, String> buildEnvironmentVariables() {
+        return Map.of(
+                "OPENAI_API_KEY", getEnvironmentVariable("OPENAI_API_KEY"),
+                "ANTHROPIC_API_KEY", getEnvironmentVariable("ANTHROPIC_API_KEY")
+        );
+    }
+
+    private String getEnvironmentVariable(String key) {
+        return Optional.ofNullable(System.getenv(key))
+                .orElseThrow(() -> new IllegalStateException("Environment variable not set: " + key));
+    }
+
+    private void registerShutdownHook() {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (isContainerRunning()) {
+                log("Stopping container on JVM shutdown");
+                try {
+                    container.stop();
+                } finally {
+                    cleanupDownloadedJar();
+                }
+            }
+        }));
+    }
+
+    private void cleanupDownloadedJar() {
+        if (downloadedJarPath != null) {
+            try {
+                Files.deleteIfExists(downloadedJarPath);
+                Files.deleteIfExists(downloadedJarPath.getParent());
+            } catch (IOException e) {
+                System.err.println("Failed to cleanup downloaded jar: " + e.getMessage());
+            }
+        }
+    }
+
     private int getMappedPort() {
         return container.getMappedPort(DEFAULT_SERVER_PORT);
     }
-    
+
     private String getHost() {
         return container.getHost();
     }
-    
+
     private String getBaseUrl() {
         return String.format("http://%s:%d", getHost(), getMappedPort());
     }
-    
+
     private Path downloadJarLocally() throws Exception {
         Path tempDir = Files.createTempDirectory("embabel-test-");
         Path jarPath = tempDir.resolve(ARTIFACT_ID + ".jar");
-        
-        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
-        String mavenCommand = isWindows ? "c:\\tools\\apache\\maven\\apache-maven-3.9.6\\bin\\mvn.cmd" : "mvn";
-        
-        List<String> mavenRepositoryUrls = Arrays.asList(EMBABEL_RELEASES_REPO, EMBABEL_SNAPSHOTS_REPO);
-        
-        List<String> command = new ArrayList<>();
-        command.add(mavenCommand);
-        command.add("dependency:copy");
-        command.add(String.format("-Dartifact=%s:%s:%s:jar", GROUP_ID, ARTIFACT_ID, DEFAULT_VERSION));
-        command.add("-DoutputDirectory=" + tempDir.toAbsolutePath());
-        command.add("-Dmdep.stripVersion=true");
-        
-        if (!mavenRepositoryUrls.isEmpty()) {
-            StringBuilder reposList = new StringBuilder();
-            int counter = 1;
-            for (String repoUrl : mavenRepositoryUrls) {
-                if (reposList.length() > 0) reposList.append(",");
-                reposList.append("repo").append(counter++).append("::default::").append(repoUrl);
-            }
-            command.add("-DremoteRepositories=" + reposList);
-        }
-        
-        ProcessBuilder pb = new ProcessBuilder(command);
-        pb.redirectErrorStream(true);
-        
-        Map<String, String> env = pb.environment();
 
-        Process process = pb.start();
-        StringBuilder output = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-                System.out.println("[Maven] " + line);
-            }
+        List<String> command = buildMavenCommand(tempDir);
+
+        int exitCode = executeMavenCommand(command);
+        if (exitCode != 0) {
+            throw new RuntimeException("Maven download failed with exit code: " + exitCode);
         }
-        
-        if (process.waitFor() != 0) {
-            throw new RuntimeException("Maven download failed\n" + output);
-        }
+
         if (!Files.exists(jarPath)) {
-            throw new RuntimeException("JAR not found at: " + jarPath);
+            throw new RuntimeException("JAR not found at expected path: " + jarPath);
         }
-        
+
         log("Downloaded JAR to: " + jarPath);
         return jarPath;
     }
-    
+
+    private List<String> buildMavenCommand(Path outputDirectory) {
+        String mavenExecutable = getMavenExecutable();
+        String repositoriesArg = buildRepositoriesArgument();
+
+        List<String> command = new ArrayList<>();
+        command.add(mavenExecutable);
+        command.add("dependency:copy");
+        command.add(String.format("-Dartifact=%s:%s:%s:jar", GROUP_ID, ARTIFACT_ID, DEFAULT_VERSION));
+        command.add("-DoutputDirectory=" + outputDirectory.toAbsolutePath());
+        command.add("-Dmdep.stripVersion=true");
+
+        if (!repositoriesArg.isEmpty()) {
+            command.add("-DremoteRepositories=" + repositoriesArg);
+        }
+
+        return command;
+    }
+
+    private String getMavenExecutable() {
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+        String wrapperName = isWindows ? "mvnw.cmd" : "mvnw";
+
+        Path currentDir = Paths.get(System.getProperty("user.dir"));
+
+        while (currentDir != null) {
+            Path wrapperPath = currentDir.resolve(wrapperName);
+
+            if (Files.exists(wrapperPath) && Files.isExecutable(wrapperPath)) {
+                log("Using Maven wrapper: " + wrapperPath);
+                return wrapperPath.toString();
+            }
+
+            currentDir = currentDir.getParent();
+        }
+
+        throw new IllegalStateException(
+                "Maven wrapper not found. Please ensure " + wrapperName + " exists in project root or parent directories.");
+    }
+
+    private String buildRepositoriesArgument() {
+        return IntStream.range(0, MAVEN_REPOSITORIES.size())
+                .mapToObj(i -> String.format("repo%d::default::%s", i + 1, MAVEN_REPOSITORIES.get(i)))
+                .collect(Collectors.joining(","));
+    }
+
+    private int executeMavenCommand(List<String> command) throws IOException, InterruptedException {
+        ProcessBuilder pb = new ProcessBuilder(command);
+        pb.redirectErrorStream(true);
+
+        Process process = pb.start();
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            reader.lines().forEach(line -> System.out.println("[Maven] " + line));
+        }
+
+        return process.waitFor();
+    }
+
     private void buildDockerfile(DockerfileBuilder builder) {
-        builder.from("eclipse-temurin:21-jre-alpine");
+        builder.from(DOCKER_BASE_IMAGE);
         builder.workDir("/app");
         builder.copy("app.jar", "/app/app.jar");
         builder.expose(DEFAULT_SERVER_PORT);
-        
-        List<String> javaCmd = new ArrayList<>();
-        javaCmd.add("java");
-        javaCmd.add(DEFAULT_JVM_ARGS);
-        javaCmd.add("-jar");
-        javaCmd.add("/app/app.jar");
-        
-        builder.entryPoint(javaCmd.toArray(new String[0]));
+        builder.entryPoint("java", DEFAULT_JVM_ARGS, "-jar", "/app/app.jar");
     }
-    
+
     private void storeInContext(ExtensionContext context) {
-        ExtensionContext.Store store = context.getStore(ExtensionContext.Namespace.GLOBAL);
-        store.put("embabelContainer", container);
-        store.put("embabelPort", getMappedPort());
-        store.put("embabelBaseUrl", getBaseUrl());
+        var store = context.getStore(ExtensionContext.Namespace.GLOBAL);
+        store.put(STORE_KEY_CONTAINER, container);
+        store.put(STORE_KEY_PORT, getMappedPort());
+        store.put(STORE_KEY_BASE_URL, getBaseUrl());
     }
-    
+
     private void log(String message) {
         System.out.println("[EmbabelA2AServerExtension] " + message);
     }

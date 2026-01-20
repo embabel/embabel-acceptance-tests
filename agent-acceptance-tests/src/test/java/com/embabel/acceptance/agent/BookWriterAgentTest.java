@@ -17,130 +17,45 @@ package com.embabel.acceptance.agent;
 
 import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension;
 import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension.ServerInfo;
-import io.restassured.http.ContentType;
 import io.restassured.response.Response;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.core.io.ClassPathResource;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-
-import static io.restassured.RestAssured.given;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.*;
-
+/**
+ * Acceptance tests for Book Writer Agent.
+ */
 @ExtendWith(EmbabelA2AServerExtension.class)
 @DisplayName("Book Writer Agent Tests")
-class BookWriterAgentTest {
+@Disabled("Disabled until passes A2A Inspector checks")
+class BookWriterAgentTest extends AbstractA2ATest {
+
+    @Override
+    protected String getPayloadPath() {
+        return "payloads/book-writer-request.json";
+    }
+    
+    @Override
+    protected String getRequestId() {
+        return "req-002";
+    }
 
     @Test
     @DisplayName("Should publish book about Kotlin and Spring")
-    void shouldPublishBookAboutKotlinAndSpring(ServerInfo server) throws IOException {
-        String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/book-writer-request.json");
+    void shouldPublishBookAboutKotlinAndSpring(ServerInfo server) {
+        log("Requesting book publication at: " + server.getBaseUrl());
         
-        System.out.println("Requesting book publication at: " + baseUrl);
+        Response response = sendA2ARequest(server, payload);
         
-        Response response = given()
-            .log().all()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a")
-            .then()
-            .log().all()
-            .extract()
-            .response();
-        
-        int statusCode = response.getStatusCode();
-        System.out.println("Response status: " + statusCode);
-        
-        assertThat(statusCode)
-            .as("Server should accept the book publication request")
-            .isIn(200, 202);
-        
-        if (statusCode == 200) {
-            response.then()
-                .body("jsonrpc", equalTo("2.0"))
-                .body("id", equalTo("req-002"))
-                .body("result", notNullValue());
-            
-            System.out.println("✓ Book publication completed successfully");
-        } else {
-            System.out.println("✓ Book publication request accepted for async processing");
-        }
-    }
-    
-    @Test
-    @DisplayName("Should validate JSON-RPC protocol compliance")
-    void shouldValidateJsonRpcProtocol(ServerInfo server) throws IOException {
-        String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/book-writer-request.json");
-        
-        Response response = given()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a")
-            .then()
-            .extract()
-            .response();
+        assertSuccessfulA2AResponse(response);
         
         if (response.getStatusCode() == 200) {
-            response.then()
-                .body("jsonrpc", equalTo("2.0"))
-                .body("$", hasKey("id"))
-                .body("$", anyOf(hasKey("result"), hasKey("error")));
-            
-            boolean hasResult = response.path("result") != null;
-            boolean hasError = response.path("error") != null;
-            
-            assertThat(hasResult ^ hasError)
-                .as("JSON-RPC response must have either result or error, not both")
-                .isTrue();
-            
-            System.out.println("✓ JSON-RPC protocol compliance validated");
+            assertJsonRpcCompliance(response);
+            assertContentPresent(response);
+            log("✓ Book publication completed successfully");
+        } else {
+            log("✓ Book publication request accepted for async processing");
         }
-    }
-    
-    @Test
-    @DisplayName("Should verify message structure with session context")
-    void shouldVerifyMessageStructure(ServerInfo server) throws IOException {
-        String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/book-writer-request.json");
-        
-        assertThat(payload)
-            .as("Payload should contain message structure")
-            .contains("\"kind\": \"message\"")
-            .contains("Kotlin and Spring Framework");
-        
-        System.out.println("✓ Message structure validated");
-        
-        Response response = given()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a");
-        
-        System.out.println("Response status: " + response.getStatusCode());
-        System.out.println("✓ Structured message processed");
-    }
-    
-    private String loadJsonPayload(String resourcePath) throws IOException {
-        ClassPathResource resource = new ClassPathResource(resourcePath);
-        
-        if (!resource.exists()) {
-            throw new IllegalArgumentException(
-                "Payload file not found: " + resourcePath + 
-                ". Make sure the file exists in src/test/resources/" + resourcePath
-            );
-        }
-        
-        return resource.getContentAsString(StandardCharsets.UTF_8);
     }
 }

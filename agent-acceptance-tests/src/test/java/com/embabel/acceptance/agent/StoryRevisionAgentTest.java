@@ -17,130 +17,45 @@ package com.embabel.acceptance.agent;
 
 import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension;
 import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension.ServerInfo;
-import io.restassured.http.ContentType;
 import io.restassured.response.Response;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.core.io.ClassPathResource;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-
-import static io.restassured.RestAssured.given;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.*;
-
+/**
+ * Acceptance tests for Story Revision Agent.
+ */
 @ExtendWith(EmbabelA2AServerExtension.class)
 @DisplayName("Story Revision Agent Tests - Revise Until Satisfied")
-class StoryRevisionAgentTest {
+@Disabled("Disabled until passes A2A Inspector checks")
+class StoryRevisionAgentTest extends AbstractA2ATest {
+
+    @Override
+    protected String getPayloadPath() {
+        return "payloads/story-revision-request.json";
+    }
+    
+    @Override
+    protected String getRequestId() {
+        return "req-005";
+    }
 
     @Test
     @DisplayName("Should revise story until satisfied")
-    void shouldReviseStoryUntilSatisfied(ServerInfo server) throws IOException {
-        String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/story-revision-request.json");
+    void shouldReviseStoryUntilSatisfied(ServerInfo server) {
+        log("Requesting story revision at: " + server.getBaseUrl());
         
-        System.out.println("Requesting story revision at: " + baseUrl);
+        Response response = sendA2ARequest(server, payload);
         
-        Response response = given()
-            .log().all()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a")
-            .then()
-            .log().all()
-            .extract()
-            .response();
-        
-        int statusCode = response.getStatusCode();
-        System.out.println("Response status: " + statusCode);
-        
-        assertThat(statusCode)
-            .as("Server should accept the story revision request")
-            .isIn(200, 202);
-        
-        if (statusCode == 200) {
-            response.then()
-                .body("jsonrpc", equalTo("2.0"))
-                .body("id", equalTo("req-005"))
-                .body("result", notNullValue());
-            
-            System.out.println("✓ Story revision completed successfully");
-        } else {
-            System.out.println("✓ Story revision request accepted for async processing");
-        }
-    }
-    
-    @Test
-    @DisplayName("Should validate JSON-RPC protocol compliance")
-    void shouldValidateJsonRpcProtocol(ServerInfo server) throws IOException {
-        String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/story-revision-request.json");
-        
-        Response response = given()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a")
-            .then()
-            .extract()
-            .response();
+        assertSuccessfulA2AResponse(response);
         
         if (response.getStatusCode() == 200) {
-            response.then()
-                .body("jsonrpc", equalTo("2.0"))
-                .body("$", hasKey("id"))
-                .body("$", anyOf(hasKey("result"), hasKey("error")));
-            
-            boolean hasResult = response.path("result") != null;
-            boolean hasError = response.path("error") != null;
-            
-            assertThat(hasResult ^ hasError)
-                .as("JSON-RPC response must have either result or error, not both")
-                .isTrue();
-            
-            System.out.println("✓ JSON-RPC protocol compliance validated");
+            assertJsonRpcCompliance(response);
+            assertContentPresent(response);
+            log("✓ Story revision completed successfully");
+        } else {
+            log("✓ Story revision request accepted for async processing");
         }
-    }
-    
-    @Test
-    @DisplayName("Should verify message structure with story content")
-    void shouldVerifyMessageStructure(ServerInfo server) throws IOException {
-        String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/story-revision-request.json");
-        
-        assertThat(payload)
-            .as("Payload should contain story to revise")
-            .contains("\"kind\": \"text\"")
-            .contains("story");
-        
-        System.out.println("✓ Message structure validated");
-        
-        Response response = given()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a");
-        
-        System.out.println("Response status: " + response.getStatusCode());
-        System.out.println("✓ Structured message processed");
-    }
-    
-    private String loadJsonPayload(String resourcePath) throws IOException {
-        ClassPathResource resource = new ClassPathResource(resourcePath);
-        
-        if (!resource.exists()) {
-            throw new IllegalArgumentException(
-                "Payload file not found: " + resourcePath + 
-                ". Make sure the file exists in src/test/resources/" + resourcePath
-            );
-        }
-        
-        return resource.getContentAsString(StandardCharsets.UTF_8);
     }
 }

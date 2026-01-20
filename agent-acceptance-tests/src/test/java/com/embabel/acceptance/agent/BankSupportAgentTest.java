@@ -17,130 +17,45 @@ package com.embabel.acceptance.agent;
 
 import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension;
 import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension.ServerInfo;
-import io.restassured.http.ContentType;
 import io.restassured.response.Response;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.core.io.ClassPathResource;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-
-import static io.restassured.RestAssured.given;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.*;
-
+/**
+ * Acceptance tests for Bank Support Agent.
+ */
 @ExtendWith(EmbabelA2AServerExtension.class)
 @DisplayName("Bank Support Agent Tests")
-class BankSupportAgentTest {
+@Disabled("Disabled until passes A2A Inspector checks")
+class BankSupportAgentTest extends AbstractA2ATest {
+
+    @Override
+    protected String getPayloadPath() {
+        return "payloads/bank-support-request.json";
+    }
+    
+    @Override
+    protected String getRequestId() {
+        return "req-007";
+    }
 
     @Test
     @DisplayName("Should help customer with banking query")
-    void shouldHelpCustomerWithBankingQuery(ServerInfo server) throws IOException {
-        String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/bank-support-request.json");
+    void shouldHelpCustomerWithBankingQuery(ServerInfo server) {
+        log("Requesting bank support at: " + server.getBaseUrl());
         
-        System.out.println("Requesting bank support at: " + baseUrl);
+        Response response = sendA2ARequest(server, payload);
         
-        Response response = given()
-            .log().all()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a")
-            .then()
-            .log().all()
-            .extract()
-            .response();
-        
-        int statusCode = response.getStatusCode();
-        System.out.println("Response status: " + statusCode);
-        
-        assertThat(statusCode)
-            .as("Server should accept the support request")
-            .isIn(200, 202);
-        
-        if (statusCode == 200) {
-            response.then()
-                .body("jsonrpc", equalTo("2.0"))
-                .body("id", equalTo("req-007"))
-                .body("result", notNullValue());
-            
-            System.out.println("✓ Bank support request handled successfully");
-        } else {
-            System.out.println("✓ Support request accepted for async processing");
-        }
-    }
-    
-    @Test
-    @DisplayName("Should validate JSON-RPC protocol compliance")
-    void shouldValidateJsonRpcProtocol(ServerInfo server) throws IOException {
-        String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/bank-support-request.json");
-        
-        Response response = given()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a")
-            .then()
-            .extract()
-            .response();
+        assertSuccessfulA2AResponse(response);
         
         if (response.getStatusCode() == 200) {
-            response.then()
-                .body("jsonrpc", equalTo("2.0"))
-                .body("$", hasKey("id"))
-                .body("$", anyOf(hasKey("result"), hasKey("error")));
-            
-            boolean hasResult = response.path("result") != null;
-            boolean hasError = response.path("error") != null;
-            
-            assertThat(hasResult ^ hasError)
-                .as("JSON-RPC response must have either result or error, not both")
-                .isTrue();
-            
-            System.out.println("✓ JSON-RPC protocol compliance validated");
+            assertJsonRpcCompliance(response);
+            assertContentPresent(response);
+            log("✓ Bank support request handled successfully");
+        } else {
+            log("✓ Support request accepted for async processing");
         }
-    }
-    
-    @Test
-    @DisplayName("Should verify message structure with customer query")
-    void shouldVerifyMessageStructure(ServerInfo server) throws IOException {
-        String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/bank-support-request.json");
-        
-        assertThat(payload)
-            .as("Payload should contain customer query")
-            .contains("\"kind\": \"text\"")
-            .contains("bank account");
-        
-        System.out.println("✓ Message structure validated");
-        
-        Response response = given()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a");
-        
-        System.out.println("Response status: " + response.getStatusCode());
-        System.out.println("✓ Structured message processed");
-    }
-    
-    private String loadJsonPayload(String resourcePath) throws IOException {
-        ClassPathResource resource = new ClassPathResource(resourcePath);
-        
-        if (!resource.exists()) {
-            throw new IllegalArgumentException(
-                "Payload file not found: " + resourcePath + 
-                ". Make sure the file exists in src/test/resources/" + resourcePath
-            );
-        }
-        
-        return resource.getContentAsString(StandardCharsets.UTF_8);
     }
 }

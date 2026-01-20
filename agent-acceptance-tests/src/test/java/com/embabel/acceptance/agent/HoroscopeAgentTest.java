@@ -17,153 +17,43 @@ package com.embabel.acceptance.agent;
 
 import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension;
 import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension.ServerInfo;
-import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.core.io.ClassPathResource;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-
-import static io.restassured.RestAssured.given;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.*;
-
+/**
+ * Acceptance tests for Horoscope Agent interactions via A2A protocol.
+ */
 @ExtendWith(EmbabelA2AServerExtension.class)
-@DisplayName("EmbabelA2AServer Agent Interaction Tests")
-class HoroscopeAgentTest {
+@DisplayName("Horoscope Agent Tests")
+class HoroscopeAgentTest extends AbstractA2ATest {
+    
+    @Override
+    protected String getPayloadPath() {
+        return "payloads/horoscope-agent-request.json";
+    }
+    
+    @Override
+    protected String getRequestId() {
+        return "req-001";
+    }
 
     @Test
     @DisplayName("Should send horoscope message and receive AI-generated story")
-    void shouldSendHoroscopeMessageAndReceiveStory(ServerInfo server) throws IOException {
-        String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/horoscope-agent-request.json");
+    void shouldSendHoroscopeMessageAndReceiveStory(ServerInfo server) {
+        log("Sending horoscope message to server at: " + server.getBaseUrl());
         
-        System.out.println("Sending horoscope message to server at: " + baseUrl);
+        Response response = sendA2ARequest(server, payload);
         
-        Response response = given()
-            .log().all()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a")
-            .then()
-            .log().all()
-            .extract()
-            .response();
-        
-        int statusCode = response.getStatusCode();
-        System.out.println("Response status: " + statusCode);
-        
-        assertThat(statusCode)
-            .as("Server should accept the message")
-            .isIn(200, 202);
-        
-        if (statusCode == 200) {
-            response.then()
-                .body("jsonrpc", equalTo("2.0"))
-                .body("id", equalTo("req-001"))
-                .body("result", notNullValue());
-            
-            System.out.println("✓ Horoscope message sent and response received");
-        } else {
-            System.out.println("✓ Message accepted for async processing");
-        }
-    }
-    
-    @Test
-    @DisplayName("Should validate JSON-RPC protocol compliance")
-    void shouldValidateJsonRpcProtocol(ServerInfo server) throws IOException {
-        String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/horoscope-agent-request.json");
-        
-        Response response = given()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a")
-            .then()
-            .extract()
-            .response();
+        assertSuccessfulA2AResponse(response);
         
         if (response.getStatusCode() == 200) {
-            response.then()
-                .body("jsonrpc", equalTo("2.0"))
-                .body("$", hasKey("id"))
-                .body("$", anyOf(hasKey("result"), hasKey("error")));
-            
-            boolean hasResult = response.path("result") != null;
-            boolean hasError = response.path("error") != null;
-            
-            assertThat(hasResult ^ hasError)
-                .as("JSON-RPC response must have either result or error, not both")
-                .isTrue();
-            
-            System.out.println("✓ JSON-RPC protocol compliance validated");
+            assertJsonRpcCompliance(response);
+            assertContentPresent(response);
+            log("✓ Horoscope message sent and response received");
+        } else {
+            log("✓ Message accepted for async processing");
         }
-    }
-    
-    @Test
-    @DisplayName("Should include session context in message request")
-    void shouldIncludeSessionContext(ServerInfo server) throws IOException {
-        String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/agent-message-request.json");
-        
-        assertThat(payload)
-            .as("Payload should contain sessionId")
-            .contains("session-xyz-122");
-        
-        System.out.println("✓ Session ID 'session-xyz-122' present in payload");
-        
-        Response response = given()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a");
-        
-        System.out.println("Response status: " + response.getStatusCode());
-        System.out.println("✓ Request with session context processed");
-    }
-    
-    @Test
-    @DisplayName("Should verify message structure with parts")
-    void shouldVerifyMessageStructure(ServerInfo server) throws IOException {
-        String baseUrl = server.getBaseUrl();
-        String payload = loadJsonPayload("payloads/agent-message-request.json");
-        
-        assertThat(payload)
-            .as("Payload should contain message parts")
-            .contains("\"kind\": \"text\"")
-            .contains("Alex is Scorpio");
-        
-        System.out.println("✓ Message structure validated");
-        
-        Response response = given()
-            .baseUri(baseUrl)
-            .contentType(ContentType.JSON)
-            .body(payload)
-            .when()
-            .post("/a2a");
-        
-        System.out.println("Response status: " + response.getStatusCode());
-        System.out.println("✓ Structured message processed");
-    }
-    
-    private String loadJsonPayload(String resourcePath) throws IOException {
-        ClassPathResource resource = new ClassPathResource(resourcePath);
-        
-        if (!resource.exists()) {
-            throw new IllegalArgumentException(
-                "Payload file not found: " + resourcePath + 
-                ". Make sure the file exists in src/test/resources/" + resourcePath
-            );
-        }
-        
-        return resource.getContentAsString(StandardCharsets.UTF_8);
     }
 }
