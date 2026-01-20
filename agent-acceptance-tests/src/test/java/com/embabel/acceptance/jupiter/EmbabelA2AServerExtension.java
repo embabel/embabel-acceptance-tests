@@ -260,8 +260,10 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
             currentDir = currentDir.getParent();
         }
 
-        throw new IllegalStateException(
-                "Maven wrapper not found. Please ensure " + wrapperName + " exists in project root or parent directories.");
+        // Fall back to system Maven (useful for CI/CD environments)
+        String systemMaven = isWindows ? "mvn.cmd" : "mvn";
+        log("Maven wrapper not found, using system Maven: " + systemMaven);
+        return systemMaven;
     }
 
     private String buildRepositoriesArgument() {
