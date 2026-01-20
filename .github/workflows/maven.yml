@@ -38,6 +38,6 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           EMBABEL_OI_API_KEY: ${{ secrets.EMBABEL_OI_API_KEY }}
           EMBABEL_AC_API_KEY: ${{ secrets.EMBABEL_AC_API_KEY }}
-          EMBABEL_AS_KEY_ID: ${{ secrets.EMBABEL_AWS_AS_KEY_ID }}
-          EMBABEL_ST_AS_KEY: ${{ secrets.EMBABEL_AWS_ST_AS_KEY }}
+          EMBABEL_AS_KEY_ID: ${{ secrets.EMBABEL_AS_KEY_ID }}
+          EMBABEL_ST_AS_KEY: ${{ secrets.EMBABEL_ST_AS_KEY }}
         run: mvn -U -B test verify
