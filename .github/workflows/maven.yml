@@ -36,6 +36,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EMBABEL_OI_API_KEY: ${{ secrets.EMBABEL_OI_API_KEY }}
+          EMBABEL_AC_API_KEY: ${{ secrets.EMBABEL_AC_API_KEY }}
+          EMBABEL_AWS_AS_KEY_ID: ${{ secrets.EMBABEL_AWS_AS_KEY_ID }}
+          EMBABEL_AWS_ST_AS_KEY: ${{ secrets.EMBABEL_AWS_ST_AS_KEY }}
         run: mvn -U -B test verify
