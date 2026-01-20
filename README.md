@@ -31,7 +31,7 @@ Acceptance tests for **EmbabelA2AServer** using **Testcontainers** and **JUnit 5
 This test suite automatically:
 1. Downloads `example-agent-java` from **Embabel Artifactory** using Apache Maven
 2. Builds and launches it as a Docker container
-3. Runs focused acceptance tests to verify A2A agent functionality
+3. Runs focused acceptance tests to verify agent functionality via A2A protocol.
 
 **Architecture**: All tests extend `AbstractA2ATest` for minimal, DDD-focused testing.
 
