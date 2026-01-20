@@ -160,9 +160,12 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
 
     private Map<String, String> buildEnvironmentVariables() {
         return Map.of(
-                "OPENAI_API_KEY", getEnvironmentVariable("OPENAI_API_KEY"),
-                "ANTHROPIC_API_KEY", getEnvironmentVariable("ANTHROPIC_API_KEY")
-        );
+                "OPENAI_API_KEY", getEnvironmentVariable("EMBABEL_OI_API_KEY"),
+                "ANTHROPIC_API_KEY", getEnvironmentVariable("EMBABEL_AC_API_KEY"),
+                "AWS_REGION", "us-east-2",
+                "AWS_ACCESS_KEY_ID", getEnvironmentVariable("EMBABEL_AS_KEY_ID"),
+                "AWS_SECRET_ACCESS_KEY", getEnvironmentVariable("EMBABEL_ST_AS_KEY")
+                );
     }
 
     private String getEnvironmentVariable(String key) {
@@ -232,6 +235,7 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         List<String> command = new ArrayList<>();
         command.add(mavenExecutable);
         command.add("dependency:copy");
+        command.add("-U");
         command.add(String.format("-Dartifact=%s:%s:%s:jar", GROUP_ID, ARTIFACT_ID, DEFAULT_VERSION));
         command.add("-DoutputDirectory=" + outputDirectory.toAbsolutePath());
         command.add("-Dmdep.stripVersion=true");
