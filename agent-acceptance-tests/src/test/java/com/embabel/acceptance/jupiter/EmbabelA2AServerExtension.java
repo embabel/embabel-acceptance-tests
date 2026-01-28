@@ -50,7 +50,7 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
     // Maven artifact coordinates
     private static final String GROUP_ID = "com.embabel.example.java";
     private static final String ARTIFACT_ID = "example-agent-java";
-    private static final String DEFAULT_VERSION = "0.3.3-SNAPSHOT";
+    private static final String DEFAULT_VERSION = "0.3.4-SNAPSHOT";
 
     // Repository URLs
     private static final List<String> MAVEN_REPOSITORIES = List.of(
