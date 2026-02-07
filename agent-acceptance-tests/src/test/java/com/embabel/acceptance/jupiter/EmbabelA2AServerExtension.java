@@ -159,18 +159,32 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
     }
 
     private Map<String, String> buildEnvironmentVariables() {
-        return Map.of(
-                "OPENAI_API_KEY", getEnvironmentVariable("EMBABEL_OI_API_KEY"),
-                "ANTHROPIC_API_KEY", getEnvironmentVariable("EMBABEL_AC_API_KEY"),
-                "AWS_REGION", "us-east-2",
-                "AWS_ACCESS_KEY_ID", getEnvironmentVariable("EMBABEL_AS_KEY_ID"),
-                "AWS_SECRET_ACCESS_KEY", getEnvironmentVariable("EMBABEL_ST_AS_KEY")
-                );
+        Map<String, String> envVars = new HashMap<>();
+
+        // Core AI API keys
+        envVars.put("OPENAI_API_KEY", getEnvironmentVariable("EMBABEL_OI_API_KEY"));
+        envVars.put("ANTHROPIC_API_KEY", getEnvironmentVariable("EMBABEL_AC_API_KEY"));
+
+        // AWS configuration
+        envVars.put("AWS_REGION", "us-east-2");
+        envVars.put("AWS_ACCESS_KEY_ID", getEnvironmentVariable("EMBABEL_AS_KEY_ID"));
+        envVars.put("AWS_SECRET_ACCESS_KEY", getEnvironmentVariable("EMBABEL_ST_AS_KEY"));
+
+        // MCP server API keys (optional - fail silently if not present)
+        getOptionalEnvironmentVariable("BRAVE_API_KEY").ifPresent(v -> envVars.put("BRAVE_API_KEY", v));
+        getOptionalEnvironmentVariable("GITHUB_PERSONAL_ACCESS_TOKEN").ifPresent(v -> envVars.put("GITHUB_PERSONAL_ACCESS_TOKEN", v));
+        getOptionalEnvironmentVariable("GOOGLE_MAPS_API_KEY").ifPresent(v -> envVars.put("GOOGLE_MAPS_API_KEY", v));
+
+        return envVars;
     }
 
     private String getEnvironmentVariable(String key) {
         return Optional.ofNullable(System.getenv(key))
                 .orElseThrow(() -> new IllegalStateException("Environment variable not set: " + key));
+    }
+
+    private Optional<String> getOptionalEnvironmentVariable(String key) {
+        return Optional.ofNullable(System.getenv(key));
     }
 
     private void registerShutdownHook() {
@@ -293,6 +307,13 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         builder.from(DOCKER_BASE_IMAGE);
         builder.workDir("/app");
         builder.copy("app.jar", "/app/app.jar");
+
+        // Install npx (via Node.js/npm), uvx (via uv), and Chromium (for Puppeteer)
+        builder.run("apk add --no-cache nodejs npm python3 curl chromium");
+        builder.env("PUPPETEER_EXECUTABLE_PATH", "/usr/bin/chromium-browser");
+        builder.run("curl -LsSf https://astral.sh/uv/install.sh | sh");
+        builder.env("PATH", "/opt/java/openjdk/bin:/root/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
+
         builder.expose(DEFAULT_SERVER_PORT);
         builder.entryPoint("java", DEFAULT_JVM_ARGS, "-jar", "/app/app.jar");
     }
