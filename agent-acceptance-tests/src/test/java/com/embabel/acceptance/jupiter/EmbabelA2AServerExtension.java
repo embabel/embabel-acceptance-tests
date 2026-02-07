@@ -308,11 +308,9 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         builder.workDir("/app");
         builder.copy("app.jar", "/app/app.jar");
 
-        // Install npx (via Node.js/npm), uvx (via uv), and Chromium (for Puppeteer)
-        builder.run("apk add --no-cache nodejs npm python3 curl chromium");
+        // Install Node.js/npm (for npx-based MCP servers) and Chromium (for Puppeteer)
+        builder.run("apk add --no-cache nodejs npm chromium");
         builder.env("PUPPETEER_EXECUTABLE_PATH", "/usr/bin/chromium-browser");
-        builder.run("curl -LsSf https://astral.sh/uv/install.sh | sh");
-        builder.env("PATH", "/opt/java/openjdk/bin:/root/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
 
         builder.expose(DEFAULT_SERVER_PORT);
         builder.entryPoint("java", DEFAULT_JVM_ARGS, "-jar", "/app/app.jar");
