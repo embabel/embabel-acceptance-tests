@@ -1,8 +1,0 @@
-{
-  "jsonrpc": "2.0",
-  "id": "factcheck-001",
-  "method": "com.embabel.example.factchecker.FactChecker.runAndConsolidateFactChecks",
-  "params": {
-    "content": "Kotlin was developed by JetBrains and officially released in 2016. It is now an officially supported language for Android development."
-  }
-}
