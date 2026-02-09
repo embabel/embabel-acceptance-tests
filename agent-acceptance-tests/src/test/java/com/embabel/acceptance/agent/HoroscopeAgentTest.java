@@ -51,6 +51,7 @@ class HoroscopeAgentTest extends AbstractA2ATest {
     void shouldSendHoroscopeMessageAndReceiveStory(ServerInfo server) throws IOException {
         log("Sending horoscope message and verifying Zipkin traces");
 
+        long testStartMillis = System.currentTimeMillis();
         Response response = sendA2ARequest(server, payload);
 
         assertSuccessfulA2AResponse(response);
@@ -64,7 +65,7 @@ class HoroscopeAgentTest extends AbstractA2ATest {
         }
 
         // Traces are exported asynchronously — poll Zipkin until they arrive
-        List<List<Map<String, Object>>> traces = awaitTraces(server);
+        List<List<Map<String, Object>>> traces = awaitTraces(server, testStartMillis);
 
         assertThat(traces)
                 .as("At least one trace should be recorded in Zipkin")

@@ -175,23 +175,38 @@ public abstract class AbstractA2ATest {
 
     /**
      * Poll Zipkin until at least one trace appears for the service.
-     * Traces are exported asynchronously, so the first query right after
-     * the A2A call may return nothing.
+     * Only returns traces whose spans fall within the window starting at
+     * {@code testStartMillis}, so previous test runs don't pollute results.
+     *
+     * @param server          the server info providing the Zipkin base URL
+     * @param testStartMillis epoch millis captured <em>before</em> the A2A request was sent
      */
     @SuppressWarnings("unchecked")
-    protected List<List<Map<String, Object>>> awaitTraces(ServerInfo server) {
+    protected List<List<Map<String, Object>>> awaitTraces(ServerInfo server, long testStartMillis) {
         return await()
                 .atMost(ZIPKIN_POLL_TIMEOUT)
                 .pollInterval(ZIPKIN_POLL_INTERVAL)
                 .alias("Waiting for Zipkin traces")
-                .until(() -> fetchTraces(server), traces -> !traces.isEmpty());
+                .until(() -> fetchTraces(server, testStartMillis), traces -> !traces.isEmpty());
     }
 
+    /**
+     * Fetch traces from Zipkin scoped to the window [{@code testStartMillis}, now].
+     * <p>
+     * The Zipkin v2 API defines the query window as
+     * {@code [endTs - lookback, endTs]} where both values are in epoch milliseconds.
+     *
+     * @param testStartMillis epoch millis captured before the test action
+     */
     @SuppressWarnings("unchecked")
-    protected List<List<Map<String, Object>>> fetchTraces(ServerInfo server) {
+    protected List<List<Map<String, Object>>> fetchTraces(ServerInfo server, long testStartMillis) {
+        long now = System.currentTimeMillis();
+        long lookback = now - testStartMillis;
         return given()
                 .baseUri(server.getZipkinBaseUrl())
-                .queryParam("lookback", 60000)
+                .queryParam("endTs", now)
+                .queryParam("lookback", lookback)
+                .queryParam("limit", 100)
                 .when()
                 .get("/api/v2/traces")
                 .then()

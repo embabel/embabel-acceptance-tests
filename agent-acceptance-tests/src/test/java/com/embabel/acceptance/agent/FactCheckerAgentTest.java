@@ -22,6 +22,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * Acceptance tests for Fact Checker Agent.
  */
@@ -43,11 +48,12 @@ class FactCheckerAgentTest extends AbstractA2ATest {
     @DisplayName("Should fact-check content about Kotlin and Spring")
     void shouldFactCheckKotlinContent(ServerInfo server) {
         log("Requesting fact check at: " + server.getBaseUrl());
-        
+
+        long testStartMillis = System.currentTimeMillis();
         Response response = sendA2ARequest(server, payload);
-        
+
         assertSuccessfulA2AResponse(response);
-        
+
         if (response.getStatusCode() == 200) {
             assertJsonRpcCompliance(response);
             assertContentPresent(response);
@@ -55,5 +61,30 @@ class FactCheckerAgentTest extends AbstractA2ATest {
         } else {
             log("✓ Fact-check request accepted for async processing");
         }
+
+        // Traces are exported asynchronously — poll Zipkin until they arrive
+        List<List<Map<String, Object>>> traces = awaitTraces(server, testStartMillis);
+
+        assertThat(traces)
+                .as("At least one trace should be recorded in Zipkin")
+                .isNotEmpty();
+
+        List<Map<String, Object>> spans = traces.get(0);
+
+        assertThat(spans)
+                .as("Trace should contain at least one span")
+                .isNotEmpty();
+
+        log("Found " + traces.size() + " trace(s), first trace has " + spans.size() + " span(s)");
+
+        logAllTraces(traces);
+
+        assertSpanNamesPresent(spans);
+        assertSpanDurationsReasonable(spans);
+        assertTraceContiguity(spans);
+
+        TraceSummary summary = createAndLogTraceSummary(traces);
+
+        log("✓ Zipkin trace assertions passed");
     }
 }
