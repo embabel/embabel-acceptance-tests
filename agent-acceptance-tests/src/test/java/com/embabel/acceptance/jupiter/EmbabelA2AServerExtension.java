@@ -17,6 +17,7 @@ package com.embabel.acceptance.jupiter;
 
 import org.junit.jupiter.api.extension.*;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.images.builder.dockerfile.DockerfileBuilder;
@@ -64,13 +65,21 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
     private static final Duration DEFAULT_STARTUP_TIMEOUT = Duration.ofMinutes(2);
     private static final String DOCKER_BASE_IMAGE = "eclipse-temurin:21-jre-alpine";
 
+    // Zipkin configuration
+    private static final String ZIPKIN_IMAGE = "openzipkin/zipkin:latest";
+    private static final int ZIPKIN_PORT = 9411;
+    private static final String ZIPKIN_NETWORK_ALIAS = "zipkin";
+
     // Extension context keys
     private static final String STORE_KEY_CONTAINER = "embabelContainer";
     private static final String STORE_KEY_PORT = "embabelPort";
     private static final String STORE_KEY_BASE_URL = "embabelBaseUrl";
+    private static final String STORE_KEY_ZIPKIN_URL = "zipkinBaseUrl";
 
-    // Singleton container - shared across ALL test classes
+    // Singleton containers - shared across ALL test classes
     private static volatile GenericContainer<?> container;
+    private static volatile GenericContainer<?> zipkinContainer;
+    private static volatile Network network;
     private static volatile Path downloadedJarPath;
     private static final Object LOCK = new Object();
 
@@ -81,16 +90,19 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         private final String baseUrl;
         private final int port;
         private final GenericContainer<?> container;
+        private final String zipkinBaseUrl;
 
-        public ServerInfo(String baseUrl, int port, GenericContainer<?> container) {
+        public ServerInfo(String baseUrl, int port, GenericContainer<?> container, String zipkinBaseUrl) {
             this.baseUrl = Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
             this.port = port;
             this.container = Objects.requireNonNull(container, "container cannot be null");
+            this.zipkinBaseUrl = Objects.requireNonNull(zipkinBaseUrl, "zipkinBaseUrl cannot be null");
         }
 
         public String getBaseUrl() { return baseUrl; }
         public int getPort() { return port; }
         public GenericContainer<?> getContainer() { return container; }
+        public String getZipkinBaseUrl() { return zipkinBaseUrl; }
     }
 
     @Override
@@ -125,7 +137,8 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         var store = extensionContext.getStore(ExtensionContext.Namespace.GLOBAL);
         String baseUrl = store.get(STORE_KEY_BASE_URL, String.class);
         Integer port = store.get(STORE_KEY_PORT, Integer.class);
-        return new ServerInfo(baseUrl, port, container);
+        String zipkinBaseUrl = store.get(STORE_KEY_ZIPKIN_URL, String.class);
+        return new ServerInfo(baseUrl, port, container, zipkinBaseUrl);
     }
 
     private boolean isContainerRunning() {
@@ -133,23 +146,43 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
     }
 
     private void initializeContainer() throws Exception {
-        log("Initializing container (singleton - shared across all tests)");
+        log("Initializing containers (singleton - shared across all tests)");
+
+        // Create shared network so the app container can reach Zipkin by hostname
+        network = Network.newNetwork();
+
+        // Start Zipkin first — the app needs it available at startup for trace export
+        startZipkinContainer();
 
         downloadedJarPath = downloadJarLocally();
         var image = buildDockerImage(downloadedJarPath);
         var envVars = buildEnvironmentVariables();
 
         container = new GenericContainer<>(image)
+                .withNetwork(network)
                 .withExposedPorts(DEFAULT_SERVER_PORT)
                 .withEnv(envVars)
                 .withLogConsumer(frame -> System.out.print("[EmbabelA2A] " + frame.getUtf8String()))
                 .waitingFor(Wait.forListeningPort().withStartupTimeout(DEFAULT_STARTUP_TIMEOUT));
 
-        log("Starting container...");
+        log("Starting app container...");
         container.start();
-        log("Container started on port " + getMappedPort());
+        log("App container started on port " + getMappedPort());
 
         registerShutdownHook();
+    }
+
+    private void startZipkinContainer() {
+        log("Starting Zipkin container...");
+        zipkinContainer = new GenericContainer<>(ZIPKIN_IMAGE)
+                .withNetwork(network)
+                .withNetworkAliases(ZIPKIN_NETWORK_ALIAS)
+                .withExposedPorts(ZIPKIN_PORT)
+                .withLogConsumer(frame -> System.out.print("[Zipkin] " + frame.getUtf8String()))
+                .waitingFor(Wait.forHttp("/api/v2/services").forPort(ZIPKIN_PORT).withStartupTimeout(Duration.ofSeconds(60)));
+
+        zipkinContainer.start();
+        log("Zipkin started at: " + getZipkinBaseUrl());
     }
 
     private ImageFromDockerfile buildDockerImage(Path jarPath) {
@@ -164,6 +197,13 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         // Core AI API keys
         envVars.put("OPENAI_API_KEY", getEnvironmentVariable("EMBABEL_OI_API_KEY"));
         envVars.put("ANTHROPIC_API_KEY", getEnvironmentVariable("EMBABEL_AC_API_KEY"));
+
+        // Activate the observability profile for tracing/metrics support
+        envVars.put("SPRING_PROFILES_ACTIVE", "observability");
+
+        // Zipkin tracing — use the internal Docker network alias so the app can reach Zipkin
+        envVars.put("MANAGEMENT_ZIPKIN_TRACING_ENDPOINT",
+                String.format("http://%s:%d/api/v2/spans", ZIPKIN_NETWORK_ALIAS, ZIPKIN_PORT));
 
         // AWS configuration
         envVars.put("AWS_REGION", "us-east-2");
@@ -189,13 +229,20 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
 
     private void registerShutdownHook() {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            if (isContainerRunning()) {
-                log("Stopping container on JVM shutdown");
-                try {
+            try {
+                if (isContainerRunning()) {
+                    log("Stopping app container on JVM shutdown");
                     container.stop();
-                } finally {
-                    cleanupDownloadedJar();
                 }
+                if (zipkinContainer != null && zipkinContainer.isRunning()) {
+                    log("Stopping Zipkin container on JVM shutdown");
+                    zipkinContainer.stop();
+                }
+                if (network != null) {
+                    network.close();
+                }
+            } finally {
+                cleanupDownloadedJar();
             }
         }));
     }
@@ -221,6 +268,11 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
 
     private String getBaseUrl() {
         return String.format("http://%s:%d", getHost(), getMappedPort());
+    }
+
+    private String getZipkinBaseUrl() {
+        return String.format("http://%s:%d",
+                zipkinContainer.getHost(), zipkinContainer.getMappedPort(ZIPKIN_PORT));
     }
 
     private Path downloadJarLocally() throws Exception {
@@ -321,6 +373,7 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         store.put(STORE_KEY_CONTAINER, container);
         store.put(STORE_KEY_PORT, getMappedPort());
         store.put(STORE_KEY_BASE_URL, getBaseUrl());
+        store.put(STORE_KEY_ZIPKIN_URL, getZipkinBaseUrl());
     }
 
     private void log(String message) {

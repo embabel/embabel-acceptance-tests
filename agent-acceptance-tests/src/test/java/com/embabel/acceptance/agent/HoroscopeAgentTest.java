@@ -22,32 +22,39 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * Acceptance tests for Horoscope Agent interactions via A2A protocol.
+ * Verifies both the A2A response and the distributed traces exported to Zipkin.
  */
 @ExtendWith(EmbabelA2AServerExtension.class)
 @DisplayName("Horoscope Agent Tests")
 class HoroscopeAgentTest extends AbstractA2ATest {
-    
+
     @Override
     protected String getPayloadPath() {
         return "payloads/horoscope-agent-request.json";
     }
-    
+
     @Override
     protected String getRequestId() {
         return "req-001";
     }
 
     @Test
-    @DisplayName("Should send horoscope message and receive AI-generated story")
-    void shouldSendHoroscopeMessageAndReceiveStory(ServerInfo server) {
-        log("Sending horoscope message to server at: " + server.getBaseUrl());
-        
+    @DisplayName("Initiates StarFinder Agentic flow and collects Zipkin traces with expected span structure")
+    void shouldSendHoroscopeMessageAndReceiveStory(ServerInfo server) throws IOException {
+        log("Sending horoscope message and verifying Zipkin traces");
+
         Response response = sendA2ARequest(server, payload);
-        
+
         assertSuccessfulA2AResponse(response);
-        
+
         if (response.getStatusCode() == 200) {
             assertJsonRpcCompliance(response);
             assertContentPresent(response);
@@ -55,5 +62,34 @@ class HoroscopeAgentTest extends AbstractA2ATest {
         } else {
             log("✓ Message accepted for async processing");
         }
+
+        // Traces are exported asynchronously — poll Zipkin until they arrive
+        List<List<Map<String, Object>>> traces = awaitTraces(server);
+
+        assertThat(traces)
+                .as("At least one trace should be recorded in Zipkin")
+                .isNotEmpty();
+
+        List<Map<String, Object>> spans = traces.get(0);
+
+        assertThat(spans)
+                .as("Trace should contain at least one span")
+                .isNotEmpty();
+
+        log("Found " + traces.size() + " trace(s), first trace has " + spans.size() + " span(s)");
+
+        // Dump all trace details to stdout for visibility
+        logAllTraces(traces);
+
+        // Verify span structure
+        assertSpanNamesPresent(spans);
+        assertSpanDurationsReasonable(spans);
+        assertTraceContiguity(spans);
+
+        log("✓ Zipkin trace assertions passed");
+
+        log("Zipkin Url: " + server.getZipkinBaseUrl());
+
     }
+
 }
