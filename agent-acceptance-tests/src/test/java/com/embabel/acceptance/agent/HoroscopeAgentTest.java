@@ -86,6 +86,9 @@ class HoroscopeAgentTest extends AbstractA2ATest {
         assertSpanDurationsReasonable(spans);
         assertTraceContiguity(spans);
 
+        // Create and log the trace summary (aggregated across all traces)
+        TraceSummary summary = createAndLogTraceSummary(traces);
+
         log("✓ Zipkin trace assertions passed");
 
         log("Zipkin Url: " + server.getZipkinBaseUrl());

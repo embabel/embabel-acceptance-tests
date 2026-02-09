@@ -42,7 +42,7 @@ public abstract class AbstractA2ATest {
     protected static final String JSONRPC_VERSION = "2.0";
     protected static final Duration ZIPKIN_POLL_TIMEOUT = Duration.ofSeconds(30);
     protected static final Duration ZIPKIN_POLL_INTERVAL = Duration.ofSeconds(2);
-    
+
     protected String payload;
 
     @BeforeEach
@@ -51,58 +51,59 @@ public abstract class AbstractA2ATest {
     }
 
     protected abstract String getPayloadPath();
+
     protected abstract String getRequestId();
 
     protected void assertSuccessfulA2AResponse(Response response) {
         int statusCode = response.getStatusCode();
         log("Response status: " + statusCode);
-        
+
         assertThat(statusCode)
-            .as("Server should accept the message with 200 (OK) or 202 (Accepted)")
-            .isIn(200, 202);
+                .as("Server should accept the message with 200 (OK) or 202 (Accepted)")
+                .isIn(200, 202);
     }
-    
+
     protected void assertJsonRpcCompliance(Response response) {
         response.then()
-            .body("jsonrpc", equalTo(JSONRPC_VERSION))
-            .body("id", equalTo(getRequestId()))
-            .body("$", anyOf(hasKey("result"), hasKey("error")));
+                .body("jsonrpc", equalTo(JSONRPC_VERSION))
+                .body("id", equalTo(getRequestId()))
+                .body("$", anyOf(hasKey("result"), hasKey("error")));
     }
-    
+
     protected void assertContentPresent(Response response) {
         Object result = response.path("result");
         assertThat(result)
-            .as("Response should contain result object")
-            .isNotNull();
+                .as("Response should contain result object")
+                .isNotNull();
     }
-    
+
     protected Response sendA2ARequest(ServerInfo server, String requestPayload) {
         return given()
-            .log().all()
-            .baseUri(server.getBaseUrl())
-            .contentType(ContentType.JSON)
-            .body(requestPayload)
-            .when()
-            .post(A2A_ENDPOINT)
-            .then()
-            .log().all()
-            .extract()
-            .response();
+                .log().all()
+                .baseUri(server.getBaseUrl())
+                .contentType(ContentType.JSON)
+                .body(requestPayload)
+                .when()
+                .post(A2A_ENDPOINT)
+                .then()
+                .log().all()
+                .extract()
+                .response();
     }
-    
+
     protected String loadJsonPayload(String resourcePath) throws IOException {
         ClassPathResource resource = new ClassPathResource(resourcePath);
-        
+
         if (!resource.exists()) {
             throw new IllegalArgumentException(
-                "Payload file not found: " + resourcePath + 
-                ". Make sure the file exists in src/test/resources/" + resourcePath
+                    "Payload file not found: " + resourcePath +
+                            ". Make sure the file exists in src/test/resources/" + resourcePath
             );
         }
-        
+
         return resource.getContentAsString(StandardCharsets.UTF_8);
     }
-    
+
     protected void log(String message) {
         System.out.println("[" + getClass().getSimpleName() + "] " + message);
     }
@@ -230,6 +231,22 @@ public abstract class AbstractA2ATest {
                         .isGreaterThanOrEqualTo(0);
             }
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Trace summary
+    // ------------------------------------------------------------------
+
+    /**
+     * Create a {@link TraceSummary} by aggregating across all traces, and log it.
+     */
+    protected TraceSummary createAndLogTraceSummary(List<List<Map<String, Object>>> traces) {
+        TraceSummary summary = TraceSummary.fromTraces(traces);
+        // Log each line individually so the test prefix is applied
+        for (String line : summary.format().split("\n")) {
+            log(line);
+        }
+        return summary;
     }
 
     /**
