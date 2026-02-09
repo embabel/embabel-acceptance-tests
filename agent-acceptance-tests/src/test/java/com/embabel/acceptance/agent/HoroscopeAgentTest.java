@@ -82,13 +82,13 @@ class HoroscopeAgentTest extends AbstractA2ATest {
         // Dump all trace details to stdout for visibility
         logAllTraces(traces);
 
+        // Log summary first so it is always visible, even if assertions fail
+        TraceSummary summary = createAndLogTraceSummary(traces);
+
         // Verify span structure
         assertSpanNamesPresent(spans);
         assertSpanDurationsReasonable(spans);
         assertTraceContiguity(spans);
-
-        // Create and log the trace summary (aggregated across all traces)
-        TraceSummary summary = createAndLogTraceSummary(traces);
 
         log("✓ Zipkin trace assertions passed");
 

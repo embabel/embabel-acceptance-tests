@@ -79,11 +79,12 @@ class FactCheckerAgentTest extends AbstractA2ATest {
 
         logAllTraces(traces);
 
+        // Log summary first so it is always visible, even if assertions fail
+        TraceSummary summary = createAndLogTraceSummary(traces);
+
         assertSpanNamesPresent(spans);
         assertSpanDurationsReasonable(spans);
         assertTraceContiguity(spans);
-
-        TraceSummary summary = createAndLogTraceSummary(traces);
 
         log("✓ Zipkin trace assertions passed");
     }
