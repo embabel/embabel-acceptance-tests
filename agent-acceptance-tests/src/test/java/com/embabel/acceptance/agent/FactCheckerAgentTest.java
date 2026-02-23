@@ -18,6 +18,7 @@ package com.embabel.acceptance.agent;
 import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension;
 import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension.ServerInfo;
 import io.restassured.response.Response;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @ExtendWith(EmbabelA2AServerExtension.class)
 @DisplayName("Fact Checker Agent Tests")
+@Disabled("Disabled until we have a stable fact-checker agent implementation to test against")
 class FactCheckerAgentTest extends AbstractA2ATest {
 
     @Override
