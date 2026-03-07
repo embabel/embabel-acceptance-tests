@@ -23,6 +23,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.Optional;
+
 /**
  * Acceptance tests for Story Revision Agent.
  */
@@ -32,8 +34,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 class StoryRevisionAgentTest extends AbstractA2ATest {
 
     @Override
-    protected String getPayloadPath() {
-        return "payloads/story-revision-request.json";
+    protected Optional<String> getPayloadPath() {
+        return Optional.of("payloads/story-revision-request.json");
     }
     
     @Override

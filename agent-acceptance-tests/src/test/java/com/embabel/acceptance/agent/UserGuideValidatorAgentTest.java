@@ -73,12 +73,6 @@ class UserGuideValidatorAgentTest extends AbstractA2ATest {
     private static final AtomicInteger REQUEST_COUNTER = new AtomicInteger(100);
 
     @Override
-    protected String getPayloadPath() {
-        // payload is built dynamically in the test — this path is never read
-        return "payloads/user-guide-validator-request.json";
-    }
-
-    @Override
     protected String getRequestId() {
         return "req-ugv-" + REQUEST_COUNTER.getAndIncrement();
     }

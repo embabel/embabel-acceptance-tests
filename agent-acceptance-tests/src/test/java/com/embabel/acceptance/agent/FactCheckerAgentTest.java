@@ -25,6 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,8 +38,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FactCheckerAgentTest extends AbstractA2ATest {
 
     @Override
-    protected String getPayloadPath() {
-        return "payloads/fact-checker-request.json";
+    protected Optional<String> getPayloadPath() {
+        return Optional.of("payloads/fact-checker-request.json");
     }
     
     @Override

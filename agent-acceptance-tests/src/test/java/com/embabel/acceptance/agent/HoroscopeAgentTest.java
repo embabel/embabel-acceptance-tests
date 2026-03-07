@@ -25,6 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,8 +38,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class HoroscopeAgentTest extends AbstractA2ATest {
 
     @Override
-    protected String getPayloadPath() {
-        return "payloads/horoscope-agent-request.json";
+    protected Optional<String> getPayloadPath() {
+        return Optional.of("payloads/horoscope-agent-request.json");
     }
 
     @Override
