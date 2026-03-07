@@ -7,7 +7,7 @@
 name: Build
 on:
   repository_dispatch:
-   types: [examples-snapshots-deployed]
+   types: [examples-snapshots-deployed, publish-docs]
   push:
   pull_request:
     types: [ opened, synchronize, reopened ]
