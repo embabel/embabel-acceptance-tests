@@ -60,9 +60,11 @@ class UserGuideValidatorAgentTest extends AbstractA2ATest {
 
     static Stream<SectionCase> knownSections() {
         return Stream.of(
-                new SectionCase("agent.guide",  "Getting Started"),
-                new SectionCase("blackboard",   "Blackboard"),
-                new SectionCase("appendix",     "Appendix")
+                new SectionCase("agent.guide",                 "Getting Started"),
+                new SectionCase("blackboard",                  "Blackboard"),
+                new SectionCase("reference.tools",             "Tools"),
+                new SectionCase("reference.testing",           "Testing"),
+                new SectionCase("reference.integrations__a2a", "A2A Integration")
         );
     }
 
