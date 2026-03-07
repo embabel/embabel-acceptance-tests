@@ -207,8 +207,8 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
 
         // AWS configuration
         envVars.put("AWS_REGION", "us-east-2");
-        envVars.put("AWS_ACCESS_KEY_ID", getEnvironmentVariable("EMBABEL_AS_KEY_ID"));
-        envVars.put("AWS_SECRET_ACCESS_KEY", getEnvironmentVariable("EMBABEL_ST_AS_KEY"));
+        getOptionalEnvironmentVariable("AWS_ACCESS_KEY_ID").ifPresent(v -> envVars.put("EMBABEL_AS_KEY_ID", v));
+        getOptionalEnvironmentVariable("AWS_SECRET_ACCESS_KEY").ifPresent(v -> envVars.put("EMBABEL_ST_AS_KEY", v));
 
         // MCP server API keys (optional - fail silently if not present)
         getOptionalEnvironmentVariable("BRAVE_API_KEY").ifPresent(v -> envVars.put("BRAVE_API_KEY", v));
