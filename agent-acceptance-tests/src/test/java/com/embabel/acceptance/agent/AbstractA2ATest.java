@@ -23,6 +23,7 @@ import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -47,10 +48,16 @@ public abstract class AbstractA2ATest {
 
     @BeforeEach
     void setUp() throws IOException {
-        payload = loadJsonPayload(getPayloadPath());
+        Optional<String> path = getPayloadPath();
+        if (path.isPresent()) {
+            payload = loadJsonPayload(path.get());
+        }
     }
 
-    protected abstract String getPayloadPath();
+    /** Override to load a static payload file. Empty if payloads are built dynamically. */
+    protected Optional<String> getPayloadPath() {
+        return Optional.empty();
+    }
 
     protected abstract String getRequestId();
 
