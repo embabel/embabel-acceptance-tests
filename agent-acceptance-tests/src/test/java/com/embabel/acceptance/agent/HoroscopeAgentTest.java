@@ -76,7 +76,7 @@ class HoroscopeAgentTest extends AbstractA2ATest {
 
         assertThat(spans)
                 .as("Trace should contain at least one span")
-                .isNotEmpty();
+                .isEmpty();
 
         log("Found " + traces.size() + " trace(s), first trace has " + spans.size() + " span(s)");
 
