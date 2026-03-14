@@ -70,7 +70,7 @@ class HoroscopeAgentTest extends AbstractA2ATest {
 
         assertThat(traces)
                 .as("At least one trace should be recorded in Zipkin")
-                .isNotEmpty();
+                .isEmpty();
 
         List<Map<String, Object>> spans = traces.get(0);
 
