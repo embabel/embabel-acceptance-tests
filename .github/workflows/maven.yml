@@ -28,26 +28,17 @@ jobs:
           echo "testcontainers.reuse.enable=true" > /home/runner/.testcontainers.properties
       - name: Build and analyze
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           EMBABEL_OI_API_KEY: ${{ secrets.EMBABEL_OI_API_KEY }}
           EMBABEL_AC_API_KEY: ${{ secrets.EMBABEL_AC_API_KEY }}
           EMBABEL_AS_KEY_ID: ${{ secrets.EMBABEL_AS_KEY_ID }}
           EMBABEL_ST_AS_KEY: ${{ secrets.EMBABEL_ST_AS_KEY }}
-          BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
+          BRAVE_API_KEY: ${{secrets.BRAVE_API_KEY }}
         run: mvn -U -B test verify
 
   notify:
     needs: [build]
     if: failure() && github.ref == 'refs/heads/main'
     uses: embabel/embabel-build/.github/workflows/discord-notify.yml@main
-    secrets: inherit
-
-  notify-recovery:
-    needs: [build]
-    if: success() && github.ref == 'refs/heads/main'
-    uses: embabel/embabel-build/.github/workflows/notify-recovery.yml@main
-    with:
-      branch: main
-      workflow_id: build.yml
     secrets: inherit
