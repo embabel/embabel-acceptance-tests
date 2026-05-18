@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.embabel.build</groupId>
         <artifactId>embabel-build-parent</artifactId>
-        <version>0.1.12-SNAPSHOT</version>
+        <version>0.1.14-SNAPSHOT</version>
     </parent>
     <groupId>com.embabel.acceptance</groupId>
     <artifactId>acceptance-tests-parent</artifactId>
@@ -15,7 +15,7 @@
     <description>Automated Acceptnce Tests for Embabel Frameworks</description>
 
     <properties>
-        <embabel-agent.version>0.3.5-SNAPSHOT</embabel-agent.version>
+        <embabel-agent.version>0.5.0-SNAPSHOT</embabel-agent.version>
     </properties>
 
     <modules>
