@@ -59,6 +59,14 @@
             <artifactId>rest-assured</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- REST Assured's .as() deserialization requires Jackson 2 (or Gson);
+             Spring Boot 4 ships only Jackson 3 (tools.jackson), which REST Assured cannot detect -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     
     <build>

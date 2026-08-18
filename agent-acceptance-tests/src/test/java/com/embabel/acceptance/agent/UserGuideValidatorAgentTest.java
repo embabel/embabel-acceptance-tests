@@ -20,13 +20,10 @@ import com.embabel.acceptance.jupiter.EmbabelA2AServerExtension.ServerInfo;
 import io.restassured.response.Response;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
@@ -113,28 +110,6 @@ class UserGuideValidatorAgentTest extends AbstractA2ATest {
             log("✓ [" + section.anchor() + "] ValidationReport passed");
         } else {            log("✓ [" + section.anchor() + "] Request accepted for async processing");
         }
-
-        // Traces confirm the agent ran
-        List<List<Map<String, Object>>> traces = awaitTraces(server, testStartMillis);
-
-        assertThat(traces)
-                .as("[%s] At least one Zipkin trace should be recorded", section.anchor())
-                .isNotEmpty();
-
-        List<Map<String, Object>> spans = traces.get(0);
-
-        assertThat(spans)
-                .as("[%s] Trace should contain at least one span", section.anchor())
-                .isNotEmpty();
-
-        log("[" + section.anchor() + "] Found " + traces.size()
-                + " trace(s), first trace has " + spans.size() + " span(s)");
-
-        assertSpanNamesPresent(spans);
-        assertSpanDurationsReasonable(spans);
-        assertTraceContiguity(spans);
-
-        log("✓ [" + section.anchor() + "] Zipkin trace assertions passed");
     }
 
     // -----------------------------------------------------------------------

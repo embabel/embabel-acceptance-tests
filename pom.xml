@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.embabel.build</groupId>
         <artifactId>embabel-build-parent</artifactId>
-        <version>0.1.14-SNAPSHOT</version>
+        <version>2.0.0-SNAPSHOT</version>
     </parent>
     <groupId>com.embabel.acceptance</groupId>
     <artifactId>acceptance-tests-parent</artifactId>
@@ -15,7 +15,12 @@
     <description>Automated Acceptnce Tests for Embabel Frameworks</description>
 
     <properties>
-        <embabel-agent.version>0.5.0-SNAPSHOT</embabel-agent.version>
+        <embabel-agent.version>1.5.1-SNAPSHOT</embabel-agent.version>
+        <rest-assured.version>5.5.7</rest-assured.version>
+        <!-- REST Assured is compiled against Groovy 4; the Spring Boot 4.1 BOM pins Groovy 5,
+             which breaks it at runtime (NPE in ClosureMetaClass). Keep in sync with the
+             groovy.version declared by rest-assured-parent. -->
+        <rest-assured-groovy.version>4.0.22</rest-assured-groovy.version>
     </properties>
 
     <modules>
@@ -33,6 +38,30 @@
                 <version>${embabel-agent.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <!-- REST Assured -->
+            <dependency>
+                <groupId>io.rest-assured</groupId>
+                <artifactId>rest-assured</artifactId>
+                <version>${rest-assured.version}</version>
+            </dependency>
+
+            <!-- Pin Groovy to the version REST Assured is built against -->
+            <dependency>
+                <groupId>org.apache.groovy</groupId>
+                <artifactId>groovy</artifactId>
+                <version>${rest-assured-groovy.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.groovy</groupId>
+                <artifactId>groovy-xml</artifactId>
+                <version>${rest-assured-groovy.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.groovy</groupId>
+                <artifactId>groovy-json</artifactId>
+                <version>${rest-assured-groovy.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

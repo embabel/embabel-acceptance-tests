@@ -19,6 +19,7 @@ import org.junit.jupiter.api.extension.*;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.containers.wait.strategy.WaitAllStrategy;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.images.builder.dockerfile.DockerfileBuilder;
 
@@ -51,7 +52,7 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
     // Maven artifact coordinates
     private static final String GROUP_ID = "com.embabel.example.java";
     private static final String ARTIFACT_ID = "example-agent-java";
-    private static final String DEFAULT_VERSION = "1.5.0-SNAPSHOT";
+    private static final String DEFAULT_VERSION = "1.5.1-SNAPSHOT";
 
     // Repository URLs
     private static final List<String> MAVEN_REPOSITORIES = List.of(
@@ -63,6 +64,9 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
     private static final int DEFAULT_SERVER_PORT = 8080;
     private static final String DEFAULT_JVM_ARGS = "-Xmx1024m";
     private static final Duration DEFAULT_STARTUP_TIMEOUT = Duration.ofMinutes(2);
+    // The /a2a endpoint is only registered after ApplicationReadyEvent, well after the port opens
+    private static final Duration A2A_READY_TIMEOUT = Duration.ofMinutes(5);
+    private static final String A2A_REGISTERED_LOG_REGEX = "(?s).*Registering \\d+ A2A endpoints.*";
     private static final String DOCKER_BASE_IMAGE = "eclipse-temurin:21-jre-alpine";
 
     // Zipkin configuration
@@ -71,7 +75,6 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
     private static final String ZIPKIN_NETWORK_ALIAS = "zipkin";
 
     // Extension context keys
-    private static final String STORE_KEY_CONTAINER = "embabelContainer";
     private static final String STORE_KEY_PORT = "embabelPort";
     private static final String STORE_KEY_BASE_URL = "embabelBaseUrl";
     private static final String STORE_KEY_ZIPKIN_URL = "zipkinBaseUrl";
@@ -110,6 +113,10 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         if (!isContainerRunning()) {
             synchronized (LOCK) {
                 if (!isContainerRunning()) {
+                    if (container != null) {
+                        logDeadContainerDiagnostics();
+                        stopLeftoverInfrastructure();
+                    }
                     initializeContainer();
                 } else {
                     log("Reusing existing container (singleton)");
@@ -145,6 +152,60 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
         return container != null && container.isRunning();
     }
 
+    /**
+     * The singleton app container died between test classes. Log why before restarting,
+     * so mid-suite restarts are visible and diagnosable instead of silent.
+     */
+    private void logDeadContainerDiagnostics() {
+        log("!!! App container is no longer running - it died since a previous test class. Restarting.");
+        try {
+            var state = container.getCurrentContainerInfo().getState();
+            log("Dead container state: status=" + state.getStatus()
+                    + ", exitCode=" + state.getExitCodeLong()
+                    + ", oomKilled=" + state.getOOMKilled()
+                    + ", error=" + state.getError()
+                    + ", finishedAt=" + state.getFinishedAt());
+        } catch (Exception e) {
+            log("Could not inspect dead container: " + e.getMessage());
+        }
+        try {
+            String logs = container.getLogs();
+            String tail = logs.length() > 4000 ? logs.substring(logs.length() - 4000) : logs;
+            log("Dead container log tail:\n" + tail);
+        } catch (Exception e) {
+            log("Could not fetch dead container logs: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Stop the previous Zipkin container and network before re-initializing,
+     * so a restart does not accumulate orphaned containers and networks.
+     */
+    private void stopLeftoverInfrastructure() {
+        try {
+            container.stop();
+        } catch (Exception e) {
+            log("Could not remove dead app container: " + e.getMessage());
+        }
+        container = null;
+        if (zipkinContainer != null) {
+            try {
+                zipkinContainer.stop();
+            } catch (Exception e) {
+                log("Could not stop leftover Zipkin container: " + e.getMessage());
+            }
+            zipkinContainer = null;
+        }
+        if (network != null) {
+            try {
+                network.close();
+            } catch (Exception e) {
+                log("Could not close leftover network: " + e.getMessage());
+            }
+            network = null;
+        }
+    }
+
     private void initializeContainer() throws Exception {
         log("Initializing containers (singleton - shared across all tests)");
 
@@ -163,7 +224,13 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
                 .withExposedPorts(DEFAULT_SERVER_PORT)
                 .withEnv(envVars)
                 .withLogConsumer(frame -> System.out.print("[EmbabelA2A] " + frame.getUtf8String()))
-                .waitingFor(Wait.forListeningPort().withStartupTimeout(DEFAULT_STARTUP_TIMEOUT));
+                // Listening port is not enough: Tomcat accepts connections while agent scanning
+                // is still in progress, and A2AEndpointRegistrar only mounts /a2a after
+                // ApplicationReadyEvent. Requests sent before that get 404.
+                .waitingFor(new WaitAllStrategy(WaitAllStrategy.Mode.WITH_INDIVIDUAL_TIMEOUTS_ONLY)
+                        .withStrategy(Wait.forListeningPort().withStartupTimeout(DEFAULT_STARTUP_TIMEOUT))
+                        .withStrategy(Wait.forLogMessage(A2A_REGISTERED_LOG_REGEX, 1)
+                                .withStartupTimeout(A2A_READY_TIMEOUT)));
 
         log("Starting app container...");
         container.start();
@@ -369,8 +436,10 @@ public class EmbabelA2AServerExtension implements BeforeAllCallback, AfterAllCal
     }
 
     private void storeInContext(ExtensionContext context) {
+        // Do NOT put the GenericContainer itself in the store: recent JUnit versions
+        // auto-close AutoCloseable store values when the test class context ends,
+        // which would stop the shared container after every test class.
         var store = context.getStore(ExtensionContext.Namespace.GLOBAL);
-        store.put(STORE_KEY_CONTAINER, container);
         store.put(STORE_KEY_PORT, getMappedPort());
         store.put(STORE_KEY_BASE_URL, getBaseUrl());
         store.put(STORE_KEY_ZIPKIN_URL, getZipkinBaseUrl());
