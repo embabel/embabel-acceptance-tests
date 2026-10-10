@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.embabel.build</groupId>
         <artifactId>embabel-build-parent</artifactId>
-        <version>2.0.0-SNAPSHOT</version>
+        <version>2.0.3</version>
     </parent>
     <groupId>com.embabel.acceptance</groupId>
     <artifactId>acceptance-tests-parent</artifactId>
@@ -15,7 +15,7 @@
     <description>Automated Acceptnce Tests for Embabel Frameworks</description>
 
     <properties>
-        <embabel-agent.version>1.5.1-SNAPSHOT</embabel-agent.version>
+        <embabel-agent.version>1.5.4-SNAPSHOT</embabel-agent.version>
         <rest-assured.version>5.5.7</rest-assured.version>
         <!-- REST Assured is compiled against Groovy 4; the Spring Boot 4.1 BOM pins Groovy 5,
              which breaks it at runtime (NPE in ClosureMetaClass). Keep in sync with the
